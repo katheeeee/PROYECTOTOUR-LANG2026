@@ -7,3 +7,5 @@ venv/
 .streamlit/
 *.tmp
 ~$*.docx
+
+Guia_Explicacion_*.docx

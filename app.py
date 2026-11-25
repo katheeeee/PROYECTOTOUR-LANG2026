@@ -4,6 +4,19 @@ Ejecutar con: streamlit run app.py
 """
 
 import os
+import sys
+import subprocess
+
+# Auto-arranque inteligente: permite ejecutar con el botón Play de VS Code (python app.py)
+# además del comando tradicional (streamlit run app.py)
+if __name__ == "__main__":
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        if get_script_run_ctx() is None:
+            sys.exit(subprocess.call([sys.executable, "-m", "streamlit", "run", os.path.abspath(__file__)]))
+    except ImportError:
+        pass
+
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
