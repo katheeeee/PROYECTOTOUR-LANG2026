@@ -45,16 +45,26 @@ st.markdown(
         background-color: #0b1626;
         border-right: 1px solid #1e293b;
     }
+    header[data-testid="stHeader"],
+    div[data-testid="stToolbar"],
+    div[data-testid="stDecoration"] {
+        display: none !important;
+        height: 0 !important;
+    }
     .block-container {
-        padding-top: 0.75rem !important;
-        padding-bottom: 0.5rem !important;
+        padding-top: 1.1rem !important;
+        padding-bottom: 0.6rem !important;
         padding-left: 1.2rem !important;
         padding-right: 1.2rem !important;
         max-width: 100% !important;
     }
-    header[data-testid="stHeader"] {
-        background-color: #08111e;
-        height: 2.2rem;
+    button[kind="primary"] {
+        background-color: #2563eb !important;
+        border: 1px solid #3b82f6 !important;
+        color: #ffffff !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #1d4ed8 !important;
     }
     .topbar-brand {
         font-family: 'Consolas', 'Courier New', monospace;
