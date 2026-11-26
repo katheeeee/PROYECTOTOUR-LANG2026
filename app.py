@@ -201,6 +201,7 @@ def renderizar_mapa_leaflet(
             "puntos": puntos,
             "segmentos": geom["segmentos"],
             "osrm_activo": geom["osrm_activo"],
+            "motor_activo": geom.get("motor_activo", "OSRM"),
             "dist_osrm": geom["distancia_osrm_km"],
             "dur_osrm": geom["duracion_osrm_min"],
             "vista": vista_inicial,
@@ -405,7 +406,7 @@ if (primerPopupMarker) {{
 // Badge superior de estado OSRM
 const badge = document.getElementById("statusBadge");
 if (DATA.osrm_activo) {{
-  badge.innerHTML = `Leaflet + OSRM listo · <b>${{DATA.dist_osrm}} km por carretera</b> (~${{Math.round(DATA.dur_osrm)}} min)`;
+  badge.innerHTML = `Leaflet + ${{DATA.motor_activo}} · <b>${{DATA.dist_osrm}} km reales</b> (~${{Math.round(DATA.dur_osrm)}} min)`;
 }} else {{
   badge.innerHTML = `Leaflet listo · <b>Ruta lacustre / trazado directo</b>`;
 }}
@@ -607,7 +608,7 @@ with col_izq:
 
 with col_der:
     st.markdown(
-        '<div class="panel-header"><span>SALIDA COMPILADA · MAPA DE EJECUCIÓN</span><span>LEAFLET + OSRM</span></div>',
+        '<div class="panel-header"><span>SALIDA COMPILADA · MAPA DE EJECUCIÓN</span><span>LEAFLET · OSRM / VALHALLA</span></div>',
         unsafe_allow_html=True,
     )
 
