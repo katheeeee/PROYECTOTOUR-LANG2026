@@ -426,6 +426,364 @@ DATA.mensajes.forEach(m => {{
 """
 
 
+
+
+def renderizar_mapa_3d_maplibre(
+    nombre_ruta: str,
+    puntos: list,
+    geom: dict,
+    globales: dict,
+    mensajes_salida: list,
+) -> str:
+    """Genera el visor 3D real con MapLibre GL JS + Relieve DEM Terrarium del Altiplano + Vuelo 3D."""
+    features_linea = []
+    for seg in geom["segmentos"]:
+        if len(seg["coords"]) < 2:
+            continue
+        features_linea.append({
+            "type": "Feature",
+            "properties": {
+                "tipo": seg["tipo"],
+                "desde": seg["desde"],
+                "hacia": seg["hacia"],
+                "distancia_km": seg["distancia_km"],
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[c[1], c[0]] for c in seg["coords"]],
+            },
+        })
+
+    datos_js = json.dumps(
+        {
+            "nombre": nombre_ruta,
+            "puntos": puntos,
+            "geojson_rutas": {"type": "FeatureCollection", "features": features_linea},
+            "osrm_activo": geom["osrm_activo"],
+            "motor_activo": geom.get("motor_activo", "OSRM"),
+            "dist_osrm": geom["distancia_osrm_km"],
+            "dur_osrm": geom["duracion_osrm_min"],
+            "mensajes": mensajes_salida,
+        },
+        ensure_ascii=False,
+    )
+
+    return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  html, body {{
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: #08111e; font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+  }}
+  #map3d {{
+    height: 100%; width: 100%;
+    border-radius: 0 0 10px 10px;
+  }}
+  .hud-top {{
+    position: absolute; top: 12px; left: 12px; z-index: 10;
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  }}
+  .status-badge {{
+    background: rgba(11, 22, 38, 0.90); color: #cbd5e1;
+    border: 1px solid #1e3a5f; border-radius: 8px;
+    padding: 5px 10px; font-size: 11px; font-family: Consolas, monospace;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }}
+  .status-badge b {{ color: #38bdf8; }}
+  .hud-btn {{
+    background: rgba(15, 29, 50, 0.92); color: #e2e8f0;
+    border: 1px solid #2563eb; border-radius: 7px;
+    padding: 5px 10px; font-size: 11.5px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    transition: all 0.15s ease;
+  }}
+  .hud-btn:hover {{ background: #2563eb; color: #ffffff; }}
+  .hud-btn.active {{ background: #10b981; border-color: #34d399; color: #052e16; }}
+  .msg-overlay {{
+    position: absolute; bottom: 16px; left: 14px; z-index: 10;
+    max-width: 340px; display: flex; flex-direction: column; gap: 6px;
+  }}
+  .msg-card {{
+    background: rgba(11, 22, 38, 0.93);
+    border-left: 4px solid #38bdf8;
+    color: #e2e8f0; padding: 8px 12px; border-radius: 8px;
+    font-size: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  }}
+  .msg-card.rec {{ border-left-color: #10b981; }}
+  .marker-pin {{
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 12.5px; cursor: pointer;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.55);
+  }}
+  .pin-origen {{ background: #22c55e; color: #052e16; }}
+  .pin-parada {{ background: #facc15; color: #422006; }}
+  .pin-destino {{ background: #10b981; color: #052e16; }}
+
+  .maplibregl-popup-content {{
+    background: #0d1a2d !important; color: #e2e8f0 !important;
+    border: 1px solid #264166; border-radius: 12px !important;
+    padding: 10px !important; box-shadow: 0 10px 28px rgba(0,0,0,0.6) !important;
+  }}
+  .maplibregl-popup-tip {{ border-top-color: #0d1a2d !important; }}
+  .maplibregl-popup-close-button {{ color: #94a3b8; font-size: 16px; }}
+  .popup-box {{ width: 215px; }}
+  .popup-hero {{
+    height: 68px; border-radius: 8px; margin-bottom: 8px;
+    background: linear-gradient(135deg, #0f2942 0%, #0e7490 100%);
+    display: flex; align-items: center; justify-content: center;
+  }}
+  .popup-circle {{
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(11, 22, 38, 0.8); color: #e2e8f0;
+    border: 1px solid rgba(125,211,252,0.45);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px;
+  }}
+  .popup-title {{ font-size: 13px; font-weight: 700; color: #7dd3fc; margin-bottom: 3px; }}
+  .popup-tipo {{ font-size: 11px; font-weight: 700; color: #f8fafc; margin-bottom: 3px; }}
+  .popup-desc {{ font-size: 11.5px; color: #cbd5e1; margin-bottom: 5px; line-height: 1.35; }}
+  .popup-meta {{ font-size: 10.5px; color: #94a3b8; font-family: Consolas, monospace; }}
+</style>
+</head>
+<body>
+<div id="map3d"></div>
+<div class="hud-top">
+  <div class="status-badge" id="statusBadge"></div>
+  <button class="hud-btn" id="btnVuelo" onclick="iniciarVuelo3D()">✈️ Vuelo 3D</button>
+  <button class="hud-btn" id="btnTextura" onclick="alternarTextura()">🗺️ Mapa / 🛰️ Satélite</button>
+  <button class="hud-btn" id="btnOrbita" onclick="alternarOrbita()">↻ Rotar 360°</button>
+</div>
+<div class="msg-overlay" id="msgOverlay"></div>
+
+<script>
+const DATA = {datos_js};
+
+const avgLon = DATA.puntos.reduce((s, p) => s + p.lon, 0) / DATA.puntos.length;
+const avgLat = DATA.puntos.reduce((s, p) => s + p.lat, 0) / DATA.puntos.length;
+
+const map = new maplibregl.Map({{
+  container: 'map3d',
+  center: [avgLon, avgLat],
+  zoom: 9.8,
+  pitch: 62,
+  bearing: -22,
+  maxPitch: 85,
+  antialias: true,
+  style: {{
+    version: 8,
+    sources: {{
+      'sat-tiles': {{
+        type: 'raster',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{{z}}/{{y}}/{{x}}'],
+        tileSize: 256,
+        maxzoom: 17,
+        attribution: 'Esri World Imagery'
+      }},
+      'osm-tiles': {{
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png'],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: 'OpenStreetMap'
+      }},
+      'terrain-dem': {{
+        type: 'raster-dem',
+        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{{z}}/{{x}}/{{y}}.png'],
+        encoding: 'terrarium',
+        tileSize: 256,
+        maxzoom: 14
+      }}
+    }},
+    layers: [
+      {{ id: 'capa-sat', type: 'raster', source: 'sat-tiles', layout: {{ visibility: 'visible' }} }},
+      {{ id: 'capa-osm', type: 'raster', source: 'osm-tiles', layout: {{ visibility: 'none' }} }},
+      {{
+        id: 'relieve-sombra',
+        type: 'hillshade',
+        source: 'terrain-dem',
+        paint: {{
+          'hillshade-shadow-color': '#0b1626',
+          'hillshade-highlight-color': '#ffffff',
+          'hillshade-exaggeration': 0.35
+        }}
+      }}
+    ],
+    terrain: {{
+      source: 'terrain-dem',
+      exaggeration: 1.85
+    }}
+  }}
+}});
+
+map.addControl(new maplibregl.NavigationControl({{ visualizePitch: true }}), 'top-right');
+
+let marcadores = [];
+
+map.on('load', () => {{
+  // Fuente GeoJSON de carreteras reales OSRM / Valhalla
+  map.addSource('rutas-reales', {{
+    type: 'geojson',
+    data: DATA.geojson_rutas
+  }});
+
+  // Borde azul oscuro para contraste 3D
+  map.addLayer({{
+    id: 'ruta-casing',
+    type: 'line',
+    source: 'rutas-reales',
+    layout: {{ 'line-join': 'round', 'line-cap': 'round' }},
+    paint: {{ 'line-color': '#0369a1', 'line-width': 8, 'line-opacity': 0.55 }}
+  }});
+
+  // Línea principal celeste brillante sobre la carretera 3D
+  map.addLayer({{
+    id: 'ruta-carretera',
+    type: 'line',
+    source: 'rutas-reales',
+    filter: ['!=', ['get', 'tipo'], 'lacustre'],
+    layout: {{ 'line-join': 'round', 'line-cap': 'round' }},
+    paint: {{ 'line-color': '#38bdf8', 'line-width': 4.5, 'line-opacity': 0.96 }}
+  }});
+
+  // Línea punteada para tramos lacustres sobre el Lago Titicaca
+  map.addLayer({{
+    id: 'ruta-lacustre',
+    type: 'line',
+    source: 'rutas-reales',
+    filter: ['==', ['get', 'tipo'], 'lacustre'],
+    layout: {{ 'line-join': 'round', 'line-cap': 'round' }},
+    paint: {{
+      'line-color': '#7dd3fc',
+      'line-width': 4,
+      'line-dasharray': [2, 2]
+    }}
+  }});
+
+  // Marcadores numerados con popups oscuros
+  const bounds = new maplibregl.LngLatBounds();
+  DATA.puntos.forEach((p) => {{
+    bounds.extend([p.lon, p.lat]);
+    const el = document.createElement('div');
+    const cls = p.rol === 'ORIGEN' ? 'pin-origen' : (p.rol === 'DESTINO' ? 'pin-destino' : 'pin-parada');
+    el.className = 'marker-pin ' + cls;
+    el.innerText = p.orden;
+
+    const inicial = (p.nombre || 'R').trim().charAt(0).toUpperCase();
+    const popup = new maplibregl.Popup({{ offset: 18 }}).setHTML(`
+      <div class="popup-box">
+        <div class="popup-hero"><div class="popup-circle">${{inicial}}</div></div>
+        <div class="popup-title">${{p.orden}}. ${{p.nombre}} (${{p.rol}})</div>
+        <div class="popup-tipo">Tipo: ${{p.tipo}}</div>
+        <div class="popup-desc">${{p.descripcion}}</div>
+        <div class="popup-meta">
+          ${{p.clima ? p.clima + '<br/>' : ''}}
+          Coords: [${{p.lat.toFixed(4)}}, ${{p.lon.toFixed(4)}}]<br/>
+          Fuente: ${{p.fuente}}
+        </div>
+      </div>
+    `);
+
+    const mk = new maplibregl.Marker({{ element: el }})
+      .setLngLat([p.lon, p.lat])
+      .setPopup(popup)
+      .addTo(map);
+    marcadores.push({{ mk, p }});
+  }});
+
+  map.fitBounds(bounds, {{ padding: 70, pitch: 62, bearing: -22, maxZoom: 12.2, duration: 900 }});
+}});
+
+// Badge de estado 3D
+const badge = document.getElementById('statusBadge');
+if (DATA.osrm_activo) {{
+  badge.innerHTML = `Terreno 3D · ${{DATA.motor_activo}} · <b>${{DATA.dist_osrm}} km reales</b> (~${{Math.round(DATA.dur_osrm)}} min)`;
+}} else {{
+  badge.innerHTML = `Terreno 3D Altiplano · <b>Ruta lacustre / directa</b>`;
+}}
+
+// Mensajes condicionales flotantes
+const msgBox = document.getElementById('msgOverlay');
+DATA.mensajes.forEach(m => {{
+  const div = document.createElement('div');
+  div.className = 'msg-card ' + (m.tipo === 'RECOMENDAR' ? 'rec' : '');
+  const pref = m.tipo === 'RECOMENDAR' ? '★ RECOMENDACIÓN:' : 'ℹ MENSAJE:';
+  div.innerHTML = `<b>${{pref}}</b> ${{m.texto}}`;
+  msgBox.appendChild(div);
+}});
+
+// Botón: Alternar textura Satélite <-> Mapa OSM sobre el terreno 3D
+let usandoSatelite = true;
+function alternarTextura() {{
+  usandoSatelite = !usandoSatelite;
+  map.setLayoutProperty('capa-sat', 'visibility', usandoSatelite ? 'visible' : 'none');
+  map.setLayoutProperty('capa-osm', 'visibility', usandoSatelite ? 'none' : 'visible');
+}}
+
+// Botón: Vuelo 3D cinematográfico por cada parada
+let volando = false;
+async function iniciarVuelo3D() {{
+  if (volando || marcadores.length === 0) return;
+  volando = true;
+  const btn = document.getElementById('btnVuelo');
+  btn.classList.add('active');
+  btn.innerText = '✈️ Volando...';
+
+  for (let i = 0; i < marcadores.length; i++) {{
+    const {{ mk, p }} = marcadores[i];
+    marcadores.forEach(m => m.mk.getPopup().remove());
+    map.flyTo({{
+      center: [p.lon, p.lat],
+      zoom: 12.6,
+      pitch: 68,
+      bearing: -25 + i * 28,
+      speed: 0.65,
+      curve: 1.4,
+      essential: true
+    }});
+    await new Promise(r => setTimeout(r, 2600));
+    mk.togglePopup();
+    await new Promise(r => setTimeout(r, 2000));
+  }}
+
+  volando = false;
+  btn.classList.remove('active');
+  btn.innerText = '✈️ Vuelo 3D';
+}}
+
+// Botón: Rotación orbital 360°
+let orbitando = false;
+let animId = null;
+function rotarFrame() {{
+  if (!orbitando) return;
+  map.rotateTo((map.getBearing() + 0.25) % 360, {{ duration: 0 }});
+  animId = requestAnimationFrame(rotarFrame);
+}}
+function alternarOrbita() {{
+  orbitando = !orbitando;
+  const btn = document.getElementById('btnOrbita');
+  if (orbitando) {{
+    btn.classList.add('active');
+    rotarFrame();
+  }} else {{
+    btn.classList.remove('active');
+    if (animId) cancelAnimationFrame(animId);
+  }}
+}}
+</script>
+</body>
+</html>
+"""
+
+
 # =========================================================================
 # ESTADO INICIAL Y BARRA SUPERIOR (ESTILO IDE)
 # =========================================================================
@@ -607,8 +965,10 @@ with col_izq:
             st.warning("La fase semántica se ejecuta cuando el Autómata de Pila (PDA) acepta la sintaxis.")
 
 with col_der:
+    es_vista_3d = bool(ok_sintactico and ok_semantico and semantico and semantico.modelo_ruta["vista_predominante"] == "3D")
+    etiqueta_motor = "MAPLIBRE 3D DEM · OSRM / VALHALLA" if es_vista_3d else "LEAFLET · OSRM / VALHALLA"
     st.markdown(
-        '<div class="panel-header"><span>SALIDA COMPILADA · MAPA DE EJECUCIÓN</span><span>LEAFLET · OSRM / VALHALLA</span></div>',
+        f'<div class="panel-header"><span>SALIDA COMPILADA · MAPA DE EJECUCIÓN</span><span>{etiqueta_motor}</span></div>',
         unsafe_allow_html=True,
     )
 
@@ -621,12 +981,21 @@ with col_der:
             st.error(f"**Línea {err['Línea']}** (`{err['Sentencia']}`): {err['Error Semántico']}")
     else:
         ruta = semantico.modelo_ruta
-        html_mapa = renderizar_mapa_leaflet(
-            nombre_ruta=ruta["nombre"],
-            puntos=puntos_mapa,
-            geom=geom_osrm,
-            vista_inicial=ruta["vista_predominante"],
-            globales=ruta["globales"],
-            mensajes_salida=ruta["mensajes_salida"],
-        )
+        if es_vista_3d:
+            html_mapa = renderizar_mapa_3d_maplibre(
+                nombre_ruta=ruta["nombre"],
+                puntos=puntos_mapa,
+                geom=geom_osrm,
+                globales=ruta["globales"],
+                mensajes_salida=ruta["mensajes_salida"],
+            )
+        else:
+            html_mapa = renderizar_mapa_leaflet(
+                nombre_ruta=ruta["nombre"],
+                puntos=puntos_mapa,
+                geom=geom_osrm,
+                vista_inicial=ruta["vista_predominante"],
+                globales=ruta["globales"],
+                mensajes_salida=ruta["mensajes_salida"],
+            )
         components.html(html_mapa, height=645, scrolling=False)
