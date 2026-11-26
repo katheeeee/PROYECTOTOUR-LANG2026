@@ -34,9 +34,9 @@ El proyecto implementa un pipeline completo de compilación e interpretación:
 3. **Analizador Semántico (`tour_lang/semantico.py`):**
    - Construye la **Tabla de Símbolos por ámbitos** (Global vs. Local por parada).
    - Valida unicidad de paradas y atributos, compatibilidad de tipos, rangos estrictos (`PROBABILIDAD_LLUVIA` en `[0, 100]`, costos/distancias no negativos) y coherencia espacial entre `ORIGEN`, paradas y `DESTINO`.
-4. **Plataforma Web Interactiva (`app.py` con Streamlit + PyDeck):**
+4. **Plataforma Web Interactiva (`app.py` con Streamlit + Leaflet + MapLibre GL 3D + OSRM/Valhalla):**
    - Editor interactivo con los **30 ejercicios oficiales** de rutas turísticas de Puno (Básico, Intermedio y Avanzado) más 5 casos de prueba de errores.
-   - Renderizado cartográfico interactivo en **Mapa 2D**, **Perspectiva 3D** (`VISTA = "3D"`) y **Vista Satelital** (`VISTA = "SATELITE"`).
+   - Pantalla dividida estilo IDE con **enrutamiento real por carreteras (OSRM + Valhalla)**, **Mapa 2D / Satelital (Leaflet)**, **Relieve 3D real del Altiplano + Vuelo 3D (MapLibre GL)** y exportación a `.tl`, `.json` y `.geojson`.
 
 ---
 
@@ -99,3 +99,6 @@ python tests/test_tour_lang.py
 php GRAFICADOR/graficador-sintactico.php
 ```
 Los archivos `automata-v2.jff` y `GRAFICADOR/lexema_automata.jff` pueden abrirse directamente en **JFLAP 7.1**.
+
+### 4. Presentación Interactiva HTML (16:9 con Simulador del PDA)
+Abre directamente `presentacion_tour_lang.html` en cualquier navegador (navegación con flechas `←` / `→` o `Espacio`).
