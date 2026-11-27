@@ -30,7 +30,7 @@ El proyecto implementa un pipeline completo de compilación e interpretación:
    - Reconoce **23 palabras reservadas** en mayúsculas (`INICIO_RUTA`, `FIN_RUTA`, `ORIGEN`, `DESTINO`, `INICIO_PARADA`, `FIN_PARADA`, `TIPO`, `DESCRIPCION`, `UBICACION`, `VISTA`, `COSTO`, `TRANSPORTE`, `DISTANCIA`, `DURACION`, `PRONOSTICO`, `TEMPERATURA`, `PROBABILIDAD_LLUVIA`, `SI`, `SINO`, `FIN`, `RECOMENDAR`, `MOSTRAR`, `MOSTRAR_RUTA`), 11 símbolos/operadores (incluyendo `:>`), literales de cadena y números decimales con signo negativo para coordenadas geográficas del altiplano.
 2. **Analizador Sintáctico (`tour_lang/sintactico.py`, `GRAFICADOR/graficador-sintactico.php` y `automata-v2.jff`):**
    - Basado en un **Autómata de Pila Determinista (PDA)** de **36 estados** modelado y verificado en **JFLAP 7.1**.
-   - Emplea el alfabeto de pila $\Gamma = \{Z, P, A, S\}$ para validar el balanceo de bloques de ruta (`Z`), paradas intermedias (`P`), arreglos de coordenadas `[lat, lon]` (`A`) y estructuras condicionales `SI / SINO / FIN` (`S`).
+   - Emplea el alfabeto de pila $\Gamma = \{Z, R, P, A, S\}$ (`Z` se reemplaza por `R` al iniciar la ruta, y `R` se desapila al cerrar `FIN_RUTA :>`) para validar el balanceo de bloques de ruta (`R`), paradas intermedias (`P`), arreglos de coordenadas `[lat, lon]` (`A`) y estructuras condicionales `SI / SINO / FIN` (`S`).
 3. **Analizador Semántico (`tour_lang/semantico.py`):**
    - Construye la **Tabla de Símbolos por ámbitos** (Global vs. Local por parada).
    - Valida unicidad de paradas y atributos, compatibilidad de tipos, rangos estrictos (`PROBABILIDAD_LLUVIA` en `[0, 100]`, costos/distancias no negativos) y coherencia espacial entre `ORIGEN`, paradas y `DESTINO`.

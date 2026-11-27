@@ -4,6 +4,9 @@ Valida las reglas sensibles al contexto (unicidad, tipos, rangos como [0, 100],
 coherencia espacial origen-paradas-destino) y construye el modelo ejecutable del mapa.
 """
 
+import csv
+import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from .lexico import (
     ALLAVE_CUAD, CADENA, CLLAVE_CUAD, COMA, COSTO, DESCRIPCION, DESTINO,
@@ -58,6 +61,21 @@ PRONOSTICOS_PERMITIDOS = {
     "SOLEADO", "NUBLADO", "LLUVIOSO", "DESPEJADO", "VENTOSO", "FRIO", "TEMPLADO"
 }
 
+# Límites geográficos aproximados de la Región Puno
+PUNO_LAT_MIN, PUNO_LAT_MAX = -17.5, -13.0
+PUNO_LON_MIN, PUNO_LON_MAX = -71.5, -68.5
+
+_PROYECTO_ROOT = Path(__file__).resolve().parent.parent
+_RUTA_PRUEBA_IMAGENES = _PROYECTO_ROOT / "prueba_imagenes"
+_ARCHIVOS_LUGARES_EXTRA = (
+    _RUTA_PRUEBA_IMAGENES / "lugares_extra.json",
+    _RUTA_PRUEBA_IMAGENES / "hoteles_puno.json",
+)
+_ARCHIVOS_LUGARES_CSV = (
+    _PROYECTO_ROOT / "lugares_puno_osm.csv",
+    _RUTA_PRUEBA_IMAGENES / "lugares_puno_osm.csv",
+)
+
 
 class AnalizadorSemantico:
     """Ejecuta las validaciones semánticas sobre la secuencia sintácticamente válida de tokens."""
@@ -88,13 +106,101 @@ class AnalizadorSemantico:
             "Error Semántico": mensaje,
         })
 
+    def _es_coordenada_puno(self, lat: float, lon: float) -> bool:
+        return PUNO_LAT_MIN <= lat <= PUNO_LAT_MAX and PUNO_LON_MIN <= lon <= PUNO_LON_MAX
+
+    def _cargar_lugares_desde_json(self, ruta: Path) -> Dict[str, Tuple[float, float]]:
+        lugares: Dict[str, Tuple[float, float]] = {}
+        if not ruta.exists():
+            return lugares
+        try:
+            datos = json.loads(ruta.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            return lugares
+
+        if isinstance(datos, list):
+            for item in datos:
+                if not isinstance(item, dict):
+                    continue
+                nombre = str(item.get("nombre", "")).strip().upper()
+                lat = item.get("latitud")
+                lon = item.get("longitud")
+                if nombre and isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                    lugares[nombre] = (float(lat), float(lon))
+        elif isinstance(datos, dict):
+            for k, v in datos.items():
+                nombre = str(k).strip().upper()
+                if not nombre:
+                    continue
+                if isinstance(v, dict):
+                    lat, lon = v.get("latitud"), v.get("longitud")
+                    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                        lugares[nombre] = (float(lat), float(lon))
+                elif isinstance(v, (list, tuple)) and len(v) == 2:
+                    lat, lon = v[0], v[1]
+                    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                        lugares[nombre] = (float(lat), float(lon))
+        return lugares
+
+    def _cargar_lugares_desde_csv(self, ruta: Path) -> Dict[str, Tuple[float, float]]:
+        lugares: Dict[str, Tuple[float, float]] = {}
+        if not ruta.exists():
+            return lugares
+        try:
+            with ruta.open("r", encoding="utf-8", newline="") as f:
+                lector = csv.DictReader(f)
+                for fila in lector:
+                    nombre = str(fila.get("nombre", "")).strip().upper()
+                    lat_raw = fila.get("latitud")
+                    lon_raw = fila.get("longitud")
+                    if not nombre or lat_raw is None or lon_raw is None:
+                        continue
+                    try:
+                        lat = float(str(lat_raw).strip())
+                        lon = float(str(lon_raw).strip())
+                    except ValueError:
+                        continue
+                    if self._es_coordenada_puno(lat, lon):
+                        lugares[nombre] = (lat, lon)
+        except OSError:
+            return lugares
+        return lugares
+
+    def _buscar_en_diccionario(
+        self, clave: str, diccionario: Dict[str, Tuple[float, float]], permitir_parcial: bool = True
+    ) -> Optional[Tuple[float, float]]:
+        if clave in diccionario:
+            return diccionario[clave]
+        if permitir_parcial and len(clave) >= 4:
+            for k, coords in diccionario.items():
+                if k in clave or clave in k:
+                    return coords
+        return None
+
     def _resolver_coordenadas(self, nombre_lugar: str) -> Optional[Tuple[float, float]]:
         clave = nombre_lugar.strip().upper()
-        if clave in CATALOGO_LUGARES_PUNO:
-            return CATALOGO_LUGARES_PUNO[clave]
-        for k, coords in CATALOGO_LUGARES_PUNO.items():
-            if k in clave or clave in k:
+        if not clave:
+            return None
+
+        # 1. Buscar en el catálogo oficial de Puno
+        coords = self._buscar_en_diccionario(clave, CATALOGO_LUGARES_PUNO)
+        if coords is not None:
+            return coords
+
+        # 2. Buscar en lugares_extra.json y hoteles_puno.json
+        for ruta_json in _ARCHIVOS_LUGARES_EXTRA:
+            extra = self._cargar_lugares_desde_json(ruta_json)
+            coords = self._buscar_en_diccionario(clave, extra)
+            if coords is not None:
                 return coords
+
+        # 3. Buscar en lugares_puno_osm.csv (hoteles y lugares OSM de Puno)
+        for ruta_csv in _ARCHIVOS_LUGARES_CSV:
+            osm = self._cargar_lugares_desde_csv(ruta_csv)
+            coords = self._buscar_en_diccionario(clave, osm)
+            if coords is not None:
+                return coords
+
         return None
 
     def _es_numero(self, valor_tok: Token) -> Optional[float]:
@@ -110,6 +216,7 @@ class AnalizadorSemantico:
         n = len(self.tokens)
         nombres_paradas_vistos = set()
         atributos_globales_vistos = set()
+        lugares_pendientes: List[Tuple[int, str, str]] = []
 
         while i < n:
             tok = self.tokens[i]
@@ -138,12 +245,8 @@ class AnalizadorSemantico:
                 if not lugar:
                     self._agregar_error(tok.linea, 'ORIGEN "" :>', "El lugar de origen está vacío.")
                 coords = self._resolver_coordenadas(lugar)
-                if coords is None:
-                    self._agregar_error(
-                        tok.linea,
-                        f'ORIGEN "{lugar}" :>',
-                        f"El origen '{lugar}' no corresponde a un lugar válido registrado en el dominio.",
-                    )
+                if lugar and coords is None:
+                    lugares_pendientes.append((tok.linea, "ORIGEN", lugar))
                 self.modelo_ruta["origen"] = lugar
                 self.modelo_ruta["origen_coords"] = coords
                 self.tabla_simbolos.append({
@@ -276,12 +379,8 @@ class AnalizadorSemantico:
                 if not destino:
                     self._agregar_error(tok.linea, 'DESTINO "" :>', "El lugar de destino está vacío.")
                 coords = self._resolver_coordenadas(destino)
-                if coords is None:
-                    self._agregar_error(
-                        tok.linea,
-                        f'DESTINO "{destino}" :>',
-                        f"El destino '{destino}' no corresponde a un lugar válido en el dominio.",
-                    )
+                if destino and coords is None:
+                    lugares_pendientes.append((tok.linea, "DESTINO", destino))
                 if (
                     destino
                     and destino.upper() == self.modelo_ruta["origen"].upper()
@@ -348,6 +447,42 @@ class AnalizadorSemantico:
                 continue
 
             i += 1
+
+        # Verificar lugares en ORIGEN / DESTINO que no estaban en catálogo, lugares_extra.json ni hoteles_puno.json
+        for lin_lug, rol_lug, nom_lug in lugares_pendientes:
+            coords_puno_parada: Optional[Tuple[float, float]] = None
+            # Priorizar una parada con el mismo nombre y UBICACION válida en Puno
+            for p in self.modelo_ruta["paradas"]:
+                ubic = p["atributos"].get("UBICACION")
+                if (
+                    p["nombre"].strip().upper() == nom_lug.strip().upper()
+                    and isinstance(ubic, list)
+                    and len(ubic) == 2
+                    and self._es_coordenada_puno(ubic[0], ubic[1])
+                ):
+                    coords_puno_parada = (float(ubic[0]), float(ubic[1]))
+                    break
+
+            # Si no coincide por nombre, aceptar si alguna parada o la ruta trae UBICACION válida dentro de Puno
+            if coords_puno_parada is None:
+                for p in self.modelo_ruta["paradas"]:
+                    ubic = p["atributos"].get("UBICACION")
+                    if isinstance(ubic, list) and len(ubic) == 2 and self._es_coordenada_puno(ubic[0], ubic[1]):
+                        coords_puno_parada = (float(ubic[0]), float(ubic[1]))
+                        break
+
+            if coords_puno_parada is not None:
+                clave_coord = "origen_coords" if rol_lug == "ORIGEN" else "destino_coords"
+                self.modelo_ruta[clave_coord] = coords_puno_parada
+                for sym in self.tabla_simbolos:
+                    if sym.get("Ámbito") == "Global" and sym.get("Símbolo") == rol_lug:
+                        sym["Valor"] = f"{nom_lug} {coords_puno_parada}"
+            else:
+                self._agregar_error(
+                    lin_lug,
+                    f'{rol_lug} "{nom_lug}" :>',
+                    f"El lugar '{nom_lug}' en {rol_lug} no se encontró en CATALOGO_LUGARES_PUNO, lugares_extra.json ni hoteles_puno.json, y no cuenta con UBICACION = [lat, lon] válida dentro de la región Puno (lat [{PUNO_LAT_MIN}, {PUNO_LAT_MAX}], lon [{PUNO_LON_MIN}, {PUNO_LON_MAX}]). Regístralo en prueba_imagenes/lugares_extra.json desde prueba_imagenes.py o agrega UBICACION = [lat, lon] :> en una parada.",
+                )
 
         return len(self.errores) == 0
 

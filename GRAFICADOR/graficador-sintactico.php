@@ -1065,12 +1065,12 @@ class Tokenizador
  *
  * - Los estados usan los MISMOS NOMBRES que el diagrama
  *   (q0, q1, ..., qArr, qF, q25_2, q26_2).
- * - Pila inicial: Z (fondo de pila).
+ * - Alfabeto de pila Γ = {Z, R, P, A, S}. Pila inicial: Z (fondo de pila).
  *
+ *   R  reemplaza a Z en INICIO_RUTA (pop Z, push R) y se desapila en FIN_RUTA :>
  *   P  se apila en INICIO_PARADA y se desapila en FIN_PARADA
  *   A  se apila en [               y se desapila en ]
  *   S  se apila en SI              y se desapila en FIN :>
- *   Z  se desapila en FIN_RUTA :>  (cierre del programa)
  *
  * - Aceptación: estado final qF, fin del archivo y pila vacía.
  * ============================================================
@@ -1081,6 +1081,7 @@ class AnalizadorSintactico
     private const ESTADO_INICIAL = 'q0';
     private const ESTADO_FINAL   = 'qF';
     private const FONDO_PILA     = 'Z';
+    private const SIMBOLO_RUTA   = 'R';
 
     private Tokenizador $tokenizador;
 
@@ -1165,8 +1166,8 @@ class AnalizadorSintactico
 
     private function ConstruirTransiciones(): void
     {
-        /* ---------- Cabecera de la ruta ---------- */
-        $this->registrarReglaTransicion('q0', INICIO_RUTA, 'q1');
+        /* ---------- Cabecera de la ruta (pop Z, push R) ---------- */
+        $this->registrarReglaTransicion('q0', INICIO_RUTA, 'q1', self::FONDO_PILA, self::SIMBOLO_RUTA);
         $this->registrarReglaTransicion('q1', CADENA,      'q2');
         $this->registrarReglaTransicion('q2', TERMINADOR,  'q3');
         $this->registrarReglaTransicion('q3', ORIGEN,      'q4');
@@ -1256,9 +1257,9 @@ class AnalizadorSintactico
         $this->registrarGrupoTransiciones('q28', [FIN], 'q29');
         $this->registrarReglaTransicion('q29', TERMINADOR, 'q16', 'S', null);
 
-        /* ---------- Cierre de la ruta (pop Z -> estado final qF) ---------- */
+        /* ---------- Cierre de la ruta (pop R -> estado final qF) ---------- */
         $this->registrarReglaTransicion('q16', FIN_RUTA,   'q31');
-        $this->registrarReglaTransicion('q31', TERMINADOR, 'qF', self::FONDO_PILA, null);
+        $this->registrarReglaTransicion('q31', TERMINADOR, 'qF', self::SIMBOLO_RUTA, null);
     }
 
 

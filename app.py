@@ -4,10 +4,14 @@ Diseño pantalla dividida: Unidad de Compilación a la izquierda | Mapa Leaflet 
 Ejecutar con: streamlit run app.py  (o doble clic en iniciar_web.bat / botón Play en VS Code)
 """
 
+import base64
 import json
 import os
+import re
 import subprocess
 import sys
+import unicodedata
+from pathlib import Path
 
 # Auto-arranque inteligente al presionar Play en VS Code (python app.py)
 if __name__ == "__main__":
@@ -21,6 +25,7 @@ if __name__ == "__main__":
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+from PIL import Image, UnidentifiedImageError
 
 from tour_lang import AnalizadorSemantico, AnalizadorSintactico, TablaLexica
 from tour_lang.ejemplos import EJERCICIOS_TOUR_LANG
@@ -184,6 +189,104 @@ st.markdown(
 def obtener_geometria_cacheada(puntos_json: str, transporte_global: str):
     puntos_list = json.loads(puntos_json)
     return construir_geometria_ruta(puntos_list, transporte_global)
+
+
+# =========================================================================
+# GESTIÓN DE IMÁGENES LOCALES (ESTILO LATEX) PARA PARADAS Y MAPA PYDECK
+# =========================================================================
+EXTENSIONES_IMAGEN = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
+MIME_POR_EXT = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+}
+BASE_PROYECTO = Path(__file__).resolve().parent
+DIR_PRUEBA_IMG = BASE_PROYECTO / "prueba_imagenes"
+DIR_IMAGENES_LUGARES = DIR_PRUEBA_IMG / "imagenes"
+ARCHIVO_IMAGENES_JSON = DIR_PRUEBA_IMG / "imagenes.json"
+
+
+def normalizar_nombre_imagen(texto: str) -> str:
+    sin_acentos = "".join(
+        c for c in unicodedata.normalize("NFKD", texto.strip().lower()) if not unicodedata.combining(c)
+    )
+    limpio = re.sub(r"[^a-z0-9]+", "_", sin_acentos).strip("_")
+    return limpio or "imagen_lugar"
+
+
+def cargar_registro_imagenes() -> list:
+    if not ARCHIVO_IMAGENES_JSON.exists():
+        return []
+    try:
+        datos = json.loads(ARCHIVO_IMAGENES_JSON.read_text(encoding="utf-8"))
+        return datos if isinstance(datos, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def guardar_registro_imagenes(registros: list) -> None:
+    DIR_PRUEBA_IMG.mkdir(parents=True, exist_ok=True)
+    ARCHIVO_IMAGENES_JSON.write_text(json.dumps(registros, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def buscar_foto_para_lugar(nombre_lugar: str) -> str:
+    """Busca una foto en imagenes.json o prueba_imagenes/imagenes/ y devuelve Data URI base64."""
+    slug = normalizar_nombre_imagen(nombre_lugar)
+    if not slug:
+        return ""
+    ruta_encontrada = None
+    registros = cargar_registro_imagenes()
+
+    # 1. Coincidencia exacta en imagenes.json
+    for reg in registros:
+        reg_slug = str(reg.get("nombre_normalizado", "")).strip()
+        reg_lugar = normalizar_nombre_imagen(str(reg.get("lugar", reg.get("nombre", ""))))
+        if slug in (reg_slug, reg_lugar):
+            cand = BASE_PROYECTO / str(reg.get("ruta", ""))
+            if cand.exists() and cand.is_file():
+                ruta_encontrada = cand
+                break
+
+    # 2. Coincidencia parcial en imagenes.json (ej. "uros" <-> "isla_uros")
+    if ruta_encontrada is None and len(slug) >= 3:
+        for reg in registros:
+            reg_slug = str(reg.get("nombre_normalizado", "")).strip()
+            reg_lugar = normalizar_nombre_imagen(str(reg.get("lugar", reg.get("nombre", ""))))
+            if (reg_slug and (slug in reg_slug or reg_slug in slug)) or (
+                reg_lugar and (slug in reg_lugar or reg_lugar in slug)
+            ):
+                cand = BASE_PROYECTO / str(reg.get("ruta", ""))
+                if cand.exists() and cand.is_file():
+                    ruta_encontrada = cand
+                    break
+
+    # 3. Coincidencia directa o parcial en prueba_imagenes/imagenes/
+    if ruta_encontrada is None and DIR_IMAGENES_LUGARES.exists():
+        for ext in EXTENSIONES_IMAGEN:
+            cand = DIR_IMAGENES_LUGARES / f"{slug}{ext}"
+            if cand.exists() and cand.is_file():
+                ruta_encontrada = cand
+                break
+        if ruta_encontrada is None and len(slug) >= 3:
+            for p_img in sorted(DIR_IMAGENES_LUGARES.iterdir()):
+                if p_img.is_file() and p_img.suffix.lower() in EXTENSIONES_IMAGEN:
+                    stem_slug = normalizar_nombre_imagen(p_img.stem)
+                    if slug in stem_slug or stem_slug in slug:
+                        ruta_encontrada = p_img
+                        break
+
+    if ruta_encontrada is None:
+        return ""
+
+    try:
+        mime = MIME_POR_EXT.get(ruta_encontrada.suffix.lower(), "image/png")
+        b64 = base64.b64encode(ruta_encontrada.read_bytes()).decode("ascii")
+        return f"data:{mime};base64,{b64}"
+    except OSError:
+        return ""
 
 
 def renderizar_mapa_leaflet(
@@ -374,13 +477,18 @@ DATA.puntos.forEach((p, idx) => {{
   }});
 
   const inicial = (p.nombre || "R").trim().charAt(0).toUpperCase();
+  const heroHtml = p.foto_uri
+    ? `<div class="popup-hero" style="padding:0;overflow:hidden;"><img src="${{p.foto_uri}}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"/></div>`
+    : `<div class="popup-hero"><div class="popup-circle">${{inicial}}</div></div>`;
   const popupHtml = `
     <div class="popup-box">
-      <div class="popup-hero"><div class="popup-circle">${{inicial}}</div></div>
+      ${{heroHtml}}
       <div class="popup-title">${{p.orden}}. ${{p.nombre}} (${{p.rol}})</div>
       <div class="popup-tipo">Tipo: ${{p.tipo}}</div>
       <div class="popup-desc">${{p.descripcion}}</div>
       <div class="popup-meta">
+        ${{p.costo_txt ? 'Costo: ' + p.costo_txt + ' · ' : ''}}${{p.duracion_txt ? 'Duración: ' + p.duracion_txt + '<br/>' : ''}}
+        ${{p.transporte_txt ? 'Transporte: ' + p.transporte_txt + '<br/>' : ''}}
         ${{p.clima ? p.clima + '<br/>' : ''}}
         Coords: [${{p.lat.toFixed(4)}}, ${{p.lon.toFixed(4)}}]<br/>
         Fuente: ${{p.fuente}}
@@ -389,6 +497,7 @@ DATA.puntos.forEach((p, idx) => {{
   `;
 
   const mk = L.marker([p.lat, p.lon], {{ icon }}).addTo(map).bindPopup(popupHtml);
+  mk.on('mouseover', function () {{ this.openPopup(); }});
   if (p.rol === "PARADA" && !primerPopupMarker) {{
     primerPopupMarker = mk;
   }}
@@ -567,8 +676,8 @@ def renderizar_mapa_3d_maplibre(
 <script>
 const DATA = {datos_js};
 
-const avgLon = DATA.puntos.reduce((s, p) => s + p.lon, 0) / DATA.puntos.length;
-const avgLat = DATA.puntos.reduce((s, p) => s + p.lat, 0) / DATA.puntos.length;
+const avgLon = DATA.puntos.length ? DATA.puntos.reduce((s, p) => s + p.lon, 0) / DATA.puntos.length : -70.0219;
+const avgLat = DATA.puntos.length ? DATA.puntos.reduce((s, p) => s + p.lat, 0) / DATA.puntos.length : -15.8402;
 
 const map = new maplibregl.Map({{
   container: 'map3d',
@@ -678,13 +787,18 @@ map.on('load', () => {{
     el.innerText = p.orden;
 
     const inicial = (p.nombre || 'R').trim().charAt(0).toUpperCase();
+    const heroHtml = p.foto_uri
+      ? `<div class="popup-hero" style="padding:0;overflow:hidden;"><img src="${{p.foto_uri}}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"/></div>`
+      : `<div class="popup-hero"><div class="popup-circle">${{inicial}}</div></div>`;
     const popup = new maplibregl.Popup({{ offset: 18 }}).setHTML(`
       <div class="popup-box">
-        <div class="popup-hero"><div class="popup-circle">${{inicial}}</div></div>
+        ${{heroHtml}}
         <div class="popup-title">${{p.orden}}. ${{p.nombre}} (${{p.rol}})</div>
         <div class="popup-tipo">Tipo: ${{p.tipo}}</div>
         <div class="popup-desc">${{p.descripcion}}</div>
         <div class="popup-meta">
+          ${{p.costo_txt ? 'Costo: ' + p.costo_txt + ' · ' : ''}}${{p.duracion_txt ? 'Duración: ' + p.duracion_txt + '<br/>' : ''}}
+          ${{p.transporte_txt ? 'Transporte: ' + p.transporte_txt + '<br/>' : ''}}
           ${{p.clima ? p.clima + '<br/>' : ''}}
           Coords: [${{p.lat.toFixed(4)}}, ${{p.lon.toFixed(4)}}]<br/>
           Fuente: ${{p.fuente}}
@@ -699,7 +813,9 @@ map.on('load', () => {{
     marcadores.push({{ mk, p }});
   }});
 
-  map.fitBounds(bounds, {{ padding: 70, pitch: 62, bearing: -22, maxZoom: 12.2, duration: 900 }});
+  if (DATA.puntos.length > 0) {{
+    map.fitBounds(bounds, {{ padding: 70, pitch: 62, bearing: -22, maxZoom: 12.2, duration: 900 }});
+  }}
 }});
 
 // Badge de estado 3D
@@ -841,6 +957,11 @@ geojson_data = {"type": "FeatureCollection", "features": []}
 
 if ok_sintactico and ok_semantico and semantico:
     ruta = semantico.modelo_ruta
+    glob = ruta.get("globales", {})
+    costo_g = f"S/ {glob['COSTO']}" if "COSTO" in glob else "No especificado"
+    dur_g = f"{glob['DURACION']:g} h" if "DURACION" in glob else "No especificada"
+    transp_g = str(glob.get("TRANSPORTE", "No especificado"))
+
     if ruta["origen_coords"]:
         puntos_mapa.append({
             "orden": 1,
@@ -852,6 +973,10 @@ if ok_sintactico and ok_semantico and semantico:
             "lon": ruta["origen_coords"][1],
             "clima": "",
             "fuente": "catálogo",
+            "costo_txt": costo_g,
+            "duracion_txt": dur_g,
+            "transporte_txt": transp_g,
+            "foto_uri": buscar_foto_para_lugar(ruta["origen"]),
         })
     for idx_p, p in enumerate(ruta["paradas"], start=2):
         atrs = p["atributos"]
@@ -862,6 +987,9 @@ if ok_sintactico and ok_semantico and semantico:
             clima_parts.append(f"{atrs['TEMPERATURA']}°C")
         if "PROBABILIDAD_LLUVIA" in atrs:
             clima_parts.append(f"Lluvia {atrs['PROBABILIDAD_LLUVIA']}%")
+        costo_p = f"S/ {atrs['COSTO']}" if "COSTO" in atrs else costo_g
+        dur_p = f"{atrs['DURACION']:g} h" if "DURACION" in atrs else dur_g
+        transp_p = str(atrs.get("TRANSPORTE", transp_g))
         puntos_mapa.append({
             "orden": idx_p,
             "nombre": p["nombre"],
@@ -872,6 +1000,10 @@ if ok_sintactico and ok_semantico and semantico:
             "lon": p["coords"][1],
             "clima": " · ".join(clima_parts),
             "fuente": "código [lat, lon]" if "UBICACION" in atrs else "catálogo",
+            "costo_txt": costo_p,
+            "duracion_txt": dur_p,
+            "transporte_txt": transp_p,
+            "foto_uri": buscar_foto_para_lugar(p["nombre"]),
         })
     if ruta["destino_coords"]:
         puntos_mapa.append({
@@ -884,6 +1016,10 @@ if ok_sintactico and ok_semantico and semantico:
             "lon": ruta["destino_coords"][1],
             "clima": "",
             "fuente": "catálogo",
+            "costo_txt": costo_g,
+            "duracion_txt": dur_g,
+            "transporte_txt": transp_g,
+            "foto_uri": buscar_foto_para_lugar(ruta["destino"]),
         })
 
     if len(puntos_mapa) >= 2:
@@ -924,7 +1060,9 @@ with col_izq:
         unsafe_allow_html=True,
     )
 
-    tab_cod, tab_tok, tab_pda, tab_sem = st.tabs(["Código", "Tokens", "Traza PDA", "Semántica"])
+    tab_cod, tab_tok, tab_pda, tab_sem, tab_img = st.tabs(
+        ["Código", "Tokens", "Traza PDA", "Semántica", "Imágenes de lugares"]
+    )
 
     with tab_cod:
         st.text_area(
@@ -964,9 +1102,136 @@ with col_izq:
         else:
             st.warning("La fase semántica se ejecuta cuando el Autómata de Pila (PDA) acepta la sintaxis.")
 
+    with tab_img:
+        st.markdown("#### 🖼️ Imágenes de lugares")
+        DIR_IMAGENES_LUGARES.mkdir(parents=True, exist_ok=True)
+
+        nombre_img_lugar = st.text_input(
+            "Nombre del lugar o parada",
+            placeholder="Ej. Sillustani, Islas Uros, Pucara...",
+            key="input_nombre_img_lugar",
+        )
+        archivo_img = st.file_uploader(
+            "Seleccionar foto (jpg, jpeg, png, webp, gif, bmp)",
+            type=["jpg", "jpeg", "png", "webp", "gif", "bmp"],
+            key="uploader_img_lugar",
+        )
+
+        reemplazar_confirmado = False
+        slug_preview = normalizar_nombre_imagen(nombre_img_lugar) if nombre_img_lugar.strip() else ""
+        archivo_existente = None
+        if slug_preview:
+            for ext_chk in EXTENSIONES_IMAGEN:
+                cand_chk = DIR_IMAGENES_LUGARES / f"{slug_preview}{ext_chk}"
+                if cand_chk.exists():
+                    archivo_existente = cand_chk
+                    break
+
+        if archivo_existente is not None:
+            st.warning(f"⚠️ Ya existe una foto registrada como `{archivo_existente.name}`.")
+            reemplazar_confirmado = st.checkbox(
+                "Sí, deseo reemplazar la foto existente",
+                key="chk_reemplazar_img",
+            )
+
+        if st.button("💾 Guardar imagen", type="primary", key="btn_guardar_img_lugar"):
+            if not nombre_img_lugar.strip():
+                st.error("⚠️ Debes escribir el nombre del lugar.")
+            elif archivo_img is None:
+                st.error("⚠️ Debes seleccionar una imagen para subir.")
+            else:
+                ext_sub = Path(archivo_img.name).suffix.lower()
+                if ext_sub not in EXTENSIONES_IMAGEN:
+                    st.error(
+                        f"⚠️ Formato `{ext_sub}` no permitido. Solo se aceptan: "
+                        f"{', '.join(sorted(EXTENSIONES_IMAGEN))}."
+                    )
+                elif archivo_existente is not None and not reemplazar_confirmado:
+                    st.error("⚠️ Marca la casilla de confirmación arriba si deseas reemplazar la foto existente.")
+                else:
+                    try:
+                        img_verif = Image.open(archivo_img)
+                        img_verif.verify()
+                        archivo_img.seek(0)
+                    except (UnidentifiedImageError, OSError, Exception) as exc:
+                        st.error(f"⚠️ El archivo seleccionado no es una imagen válida o está dañado: {exc}")
+                    else:
+                        if archivo_existente is not None and archivo_existente.exists():
+                            archivo_existente.unlink()
+                        nombre_final = f"{slug_preview}{ext_sub}"
+                        destino_final = DIR_IMAGENES_LUGARES / nombre_final
+                        destino_final.write_bytes(archivo_img.getbuffer())
+
+                        registros = cargar_registro_imagenes()
+                        ruta_rel = f"prueba_imagenes/imagenes/{nombre_final}"
+                        registros = [
+                            r for r in registros if str(r.get("nombre_normalizado", "")) != slug_preview
+                        ]
+                        registros.append({
+                            "nombre": nombre_img_lugar.strip(),
+                            "nombre_normalizado": slug_preview,
+                            "lugar": nombre_img_lugar.strip(),
+                            "archivo": nombre_final,
+                            "ruta": ruta_rel,
+                        })
+                        guardar_registro_imagenes(registros)
+                        st.success(f"✅ Foto guardada como `{ruta_rel}` y registrada en `imagenes.json`.")
+                        st.rerun()
+
+        regs_actuales = cargar_registro_imagenes()
+        if regs_actuales:
+            st.markdown("**Imágenes registradas en `imagenes.json`:**")
+            st.dataframe(pd.DataFrame(regs_actuales), use_container_width=True, height=220, hide_index=True)
+
 with col_der:
-    es_vista_3d = bool(ok_sintactico and ok_semantico and semantico and semantico.modelo_ruta["vista_predominante"] == "3D")
-    etiqueta_motor = "MAPLIBRE 3D DEM · OSRM / VALHALLA" if es_vista_3d else "LEAFLET · OSRM / VALHALLA"
+    if "vista_selector" not in st.session_state or st.session_state.vista_selector not in ("2D", "Satélite", "3D"):
+        st.session_state.vista_selector = "2D"
+
+    mapa_vistas = {"MAPA": "2D", "SATELITE": "Satélite", "3D": "3D"}
+    if ok_sintactico and ok_semantico and semantico:
+        vista_codigo = mapa_vistas.get(
+            semantico.modelo_ruta.get("vista_predominante", "MAPA"), "2D"
+        )
+        clave_fuente = (st.session_state.ejemplo_actual, codigo_actual)
+        if st.session_state.get("ultima_fuente_vista") != clave_fuente:
+            st.session_state.vista_selector = vista_codigo
+            st.session_state.ultima_fuente_vista = clave_fuente
+
+    c_v1, c_v2, c_v3 = st.columns(3, gap="small")
+    with c_v1:
+        if st.button(
+            "🗺️ Vista 2D",
+            type="primary" if st.session_state.vista_selector == "2D" else "secondary",
+            use_container_width=True,
+            key="btn_vista_2d",
+        ):
+            st.session_state.vista_selector = "2D"
+            st.rerun()
+    with c_v2:
+        if st.button(
+            "🛰️ Satélite",
+            type="primary" if st.session_state.vista_selector == "Satélite" else "secondary",
+            use_container_width=True,
+            key="btn_vista_sat",
+        ):
+            st.session_state.vista_selector = "Satélite"
+            st.rerun()
+    with c_v3:
+        if st.button(
+            "🏔️ Terreno 3D",
+            type="primary" if st.session_state.vista_selector == "3D" else "secondary",
+            use_container_width=True,
+            key="btn_vista_3d",
+        ):
+            st.session_state.vista_selector = "3D"
+            st.rerun()
+
+    modo_activo = st.session_state.vista_selector
+    etiqueta_motor = {
+        "3D": "MAPLIBRE GL 3D · RELIEVE DEM · OSRM / VALHALLA",
+        "Satélite": "LEAFLET SATELITAL · OSRM / VALHALLA",
+        "2D": "LEAFLET 2D · OSRM / VALHALLA",
+    }.get(modo_activo, "LEAFLET 2D · OSRM / VALHALLA")
     st.markdown(
         f'<div class="panel-header"><span>SALIDA COMPILADA · MAPA DE EJECUCIÓN</span><span>{etiqueta_motor}</span></div>',
         unsafe_allow_html=True,
@@ -981,7 +1246,7 @@ with col_der:
             st.error(f"**Línea {err['Línea']}** (`{err['Sentencia']}`): {err['Error Semántico']}")
     else:
         ruta = semantico.modelo_ruta
-        if es_vista_3d:
+        if modo_activo == "3D":
             html_mapa = renderizar_mapa_3d_maplibre(
                 nombre_ruta=ruta["nombre"],
                 puntos=puntos_mapa,
@@ -990,12 +1255,13 @@ with col_der:
                 mensajes_salida=ruta["mensajes_salida"],
             )
         else:
+            vista_leaflet = "SATELITE" if modo_activo == "Satélite" else "MAPA"
             html_mapa = renderizar_mapa_leaflet(
                 nombre_ruta=ruta["nombre"],
                 puntos=puntos_mapa,
                 geom=geom_osrm,
-                vista_inicial=ruta["vista_predominante"],
+                vista_inicial=vista_leaflet,
                 globales=ruta["globales"],
                 mensajes_salida=ruta["mensajes_salida"],
             )
-        components.html(html_mapa, height=645, scrolling=False)
+        components.html(html_mapa, height=600, scrolling=False)

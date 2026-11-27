@@ -1,6 +1,6 @@
 """
 Analizador Sintáctico de TOUR-LANG basado en Autómata de Pila Determinista (PDA).
-Implementa los 36 estados del modelo JFLAP 7.1 y el alfabeto de pila Γ = {Z, P, A, S}.
+Implementa los 36 estados del modelo JFLAP 7.1 y el alfabeto de pila Γ = {Z, R, P, A, S}.
 """
 
 from typing import Dict, List, Optional
@@ -19,6 +19,7 @@ class AnalizadorSintactico:
     ESTADO_INICIAL = "q0"
     ESTADO_FINAL = "qF"
     FONDO_PILA = "Z"
+    SIMBOLO_RUTA = "R"
 
     def __init__(self, codigo: str, tabla_lexica: Optional[TablaLexica] = None) -> None:
         self.tabla = tabla_lexica or TablaLexica()
@@ -62,8 +63,8 @@ class AnalizadorSintactico:
             )
 
     def _construir_transiciones(self) -> None:
-        # 1. Cabecera de la ruta
-        self.registrar_regla_transicion("q0", INICIO_RUTA, "q1")
+        # 1. Cabecera de la ruta (pop Z, push R)
+        self.registrar_regla_transicion("q0", INICIO_RUTA, "q1", self.FONDO_PILA, self.SIMBOLO_RUTA)
         self.registrar_regla_transicion("q1", CADENA, "q2")
         self.registrar_regla_transicion("q2", TERMINADOR, "q3")
         self.registrar_regla_transicion("q3", ORIGEN, "q4")
@@ -148,9 +149,9 @@ class AnalizadorSintactico:
         self.registrar_regla_transicion("q28", FIN, "q29")
         self.registrar_regla_transicion("q29", TERMINADOR, "q16", "S", None)
 
-        # 10. Cierre de la ruta (pop Z -> qF)
+        # 10. Cierre de la ruta (pop R -> qF)
         self.registrar_regla_transicion("q16", FIN_RUTA, "q31")
-        self.registrar_regla_transicion("q31", TERMINADOR, "qF", self.FONDO_PILA, None)
+        self.registrar_regla_transicion("q31", TERMINADOR, "qF", self.SIMBOLO_RUTA, None)
 
     def _pila_como_texto(self) -> str:
         return "(vacia)" if not self.pila else " ".join(self.pila)

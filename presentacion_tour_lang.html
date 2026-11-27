@@ -1,790 +1,1069 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TOUR-LANG — COINSI 2026 · Compilador Visual de Rutas Turísticas (UNA Puno)</title>
 
     <!-- Google Fonts: Syne (Display), Plus Jakarta Sans (Body), JetBrains Mono (Code/Automata) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
 
     <style>
-        /* ===========================================
+      /* ===========================================
            THEME CUSTOM PROPERTIES
            =========================================== */
-        :root {
-            --stage-bg: #030712;
-            --slide-bg: #060d18;
-            --surface-1: #0c1729;
-            --surface-2: #12223a;
-            --border-subtle: rgba(125, 211, 252, 0.16);
-            --border-strong: rgba(56, 189, 248, 0.42);
+      :root {
+        --stage-bg: #030712;
+        --slide-bg: #060d18;
+        --surface-1: #0c1729;
+        --surface-2: #12223a;
+        --border-subtle: rgba(125, 211, 252, 0.16);
+        --border-strong: rgba(56, 189, 248, 0.42);
 
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
 
-            --cyan: #38bdf8;
-            --cyan-glow: rgba(56, 189, 248, 0.25);
-            --amber: #fbbf24;
-            --emerald: #10b981;
-            --coral: #f87171;
+        --cyan: #38bdf8;
+        --cyan-glow: rgba(56, 189, 248, 0.25);
+        --amber: #fbbf24;
+        --emerald: #10b981;
+        --coral: #f87171;
 
-            --font-display: 'Syne', sans-serif;
-            --font-body: 'Plus Jakarta Sans', sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
+        --font-display: 'Syne', sans-serif;
+        --font-body: 'Plus Jakarta Sans', sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
 
-            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-            --duration-normal: 0.65s;
-        }
+        --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+        --duration-normal: 0.65s;
+      }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        /* ===========================================
+      /* ===========================================
            FIXED 16:9 STAGE: MANDATORY BASE STYLES
            (Full contents of viewport-base.css)
            =========================================== */
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: var(--stage-bg, #000);
+        font-family: var(--font-body);
+        color: var(--text-primary);
+      }
+
+      .deck-viewport {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        background: var(--stage-bg, #000);
+      }
+
+      .deck-stage {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        transform-origin: 0 0;
+        background: var(--slide-bg, #060d18);
+        box-shadow: 0 30px 100px rgba(0, 0, 0, 0.85);
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        display: block;
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+        background: var(--slide-bg, #060d18);
+        transition: opacity 0.45s var(--ease-out-expo);
+      }
+
+      .slide.active,
+      .slide.visible {
+        visibility: visible;
+        opacity: 1;
+        pointer-events: auto;
+        z-index: 1;
+      }
+
+      img,
+      video,
+      canvas,
+      svg {
+        max-width: 100%;
+        max-height: 100%;
+      }
+
+      .deck-controls {
+        position: fixed;
+        left: 50%;
+        bottom: 20px;
+        transform: translateX(-50%);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: rgba(12, 23, 41, 0.88);
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        backdrop-filter: blur(10px);
+        padding: 8px 18px;
+        border-radius: 999px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+      }
+
+      @media print {
         html,
         body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            overflow: hidden;
-            background: var(--stage-bg, #000);
-            font-family: var(--font-body);
-            color: var(--text-primary);
+          width: 1920px;
+          height: auto;
+          overflow: visible;
+          background: #fff;
         }
-
         .deck-viewport {
-            position: fixed;
-            inset: 0;
-            overflow: hidden;
-            background: var(--stage-bg, #000);
+          position: static;
+          overflow: visible;
+          background: #fff;
         }
-
         .deck-stage {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 1920px;
-            height: 1080px;
-            overflow: hidden;
-            transform-origin: 0 0;
-            background: var(--slide-bg, #060d18);
-            box-shadow: 0 30px 100px rgba(0, 0, 0, 0.85);
+          position: static;
+          width: auto;
+          height: auto;
+          transform: none !important;
+          background: none;
         }
-
         .slide {
-            position: absolute;
-            inset: 0;
-            width: 1920px;
-            height: 1080px;
-            overflow: hidden;
-            display: block;
-            visibility: hidden;
-            opacity: 0;
-            pointer-events: none;
-            background: var(--slide-bg, #060d18);
-            transition: opacity 0.45s var(--ease-out-expo);
+          position: relative;
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          pointer-events: auto !important;
+          width: 1920px;
+          height: 1080px;
+          break-after: page;
+          page-break-after: always;
         }
-
-        .slide.active,
-        .slide.visible {
-            visibility: visible;
-            opacity: 1;
-            pointer-events: auto;
-            z-index: 1;
+        .slide:last-child {
+          break-after: auto;
+          page-break-after: auto;
         }
-
-        img, video, canvas, svg {
-            max-width: 100%;
-            max-height: 100%;
+        .deck-controls,
+        .edit-hotzone,
+        .edit-toggle,
+        .progress-track {
+          display: none !important;
         }
+      }
 
-        .deck-controls {
-            position: fixed;
-            left: 50%;
-            bottom: 20px;
-            transform: translateX(-50%);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            background: rgba(12, 23, 41, 0.88);
-            border: 1px solid rgba(56, 189, 248, 0.28);
-            backdrop-filter: blur(10px);
-            padding: 8px 18px;
-            border-radius: 999px;
-            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.2s !important;
         }
+      }
 
-        @media print {
-            html, body { width: 1920px; height: auto; overflow: visible; background: #fff; }
-            .deck-viewport { position: static; overflow: visible; background: #fff; }
-            .deck-stage { position: static; width: auto; height: auto; transform: none !important; background: none; }
-            .slide {
-                position: relative;
-                display: block !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-                pointer-events: auto !important;
-                width: 1920px;
-                height: 1080px;
-                break-after: page;
-                page-break-after: always;
-            }
-            .slide:last-child { break-after: auto; page-break-after: auto; }
-            .deck-controls, .edit-hotzone, .edit-toggle, .progress-track { display: none !important; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                transition-duration: 0.2s !important;
-            }
-        }
-
-        /* ===========================================
+      /* ===========================================
            ATMOSPHERIC BACKGROUNDS & TOPOGRAPHIC GRID
            =========================================== */
-        .slide-bg-mesh {
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(ellipse 900px 600px at 88% 12%, rgba(56, 189, 248, 0.14), transparent 70%),
-                radial-gradient(ellipse 700px 550px at 10% 90%, rgba(251, 191, 36, 0.09), transparent 68%),
-                linear-gradient(180deg, #060d18 0%, #091426 100%);
-            z-index: 0;
-        }
+      .slide-bg-mesh {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 900px 600px at 88% 12%, rgba(56, 189, 248, 0.14), transparent 70%),
+          radial-gradient(ellipse 700px 550px at 10% 90%, rgba(251, 191, 36, 0.09), transparent 68%),
+          linear-gradient(180deg, #060d18 0%, #091426 100%);
+        z-index: 0;
+      }
 
-        .slide-grid-overlay {
-            position: absolute;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(125, 211, 252, 0.035) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(125, 211, 252, 0.035) 1px, transparent 1px);
-            background-size: 64px 64px;
-            z-index: 0;
-            pointer-events: none;
-        }
+      .slide-grid-overlay {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(125, 211, 252, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(125, 211, 252, 0.035) 1px, transparent 1px);
+        background-size: 64px 64px;
+        z-index: 0;
+        pointer-events: none;
+      }
 
-        .slide-inner {
-            position: relative;
-            z-index: 2;
-            width: 1920px;
-            height: 1080px;
-            padding: 62px 84px 82px 84px;
-            display: flex;
-            flex-direction: column;
-        }
+      .slide-inner {
+        position: relative;
+        z-index: 2;
+        width: 1920px;
+        height: 1080px;
+        padding: 62px 84px 82px 84px;
+        display: flex;
+        flex-direction: column;
+      }
 
-        /* ===========================================
+      /* ===========================================
            HEADER & FOOTER CHROME INSIDE SLIDES
            =========================================== */
-        .slide-topbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 28px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border-subtle);
-        }
+      .slide-topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 28px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-subtle);
+      }
 
-        .slide-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            font-family: var(--font-mono);
-            font-size: 18px;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--cyan);
-        }
+      .slide-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-family: var(--font-mono);
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--cyan);
+      }
 
-        .slide-tag .num {
-            background: rgba(56, 189, 248, 0.15);
-            border: 1px solid var(--border-strong);
-            padding: 4px 12px;
-            border-radius: 6px;
-            color: #e0f2fe;
-        }
+      .slide-tag .num {
+        background: rgba(56, 189, 248, 0.15);
+        border: 1px solid var(--border-strong);
+        padding: 4px 12px;
+        border-radius: 6px;
+        color: #e0f2fe;
+      }
 
-        .speaker-pill {
-            font-family: var(--font-mono);
-            font-size: 17px;
-            font-weight: 600;
-            color: var(--amber);
-            background: rgba(251, 191, 36, 0.1);
-            border: 1px solid rgba(251, 191, 36, 0.3);
-            padding: 6px 16px;
-            border-radius: 999px;
-        }
+      .speaker-pill {
+        font-family: var(--font-mono);
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--amber);
+        background: rgba(251, 191, 36, 0.1);
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        padding: 6px 16px;
+        border-radius: 999px;
+      }
 
-        .slide-title {
-            font-family: var(--font-display);
-            font-size: 60px;
-            font-weight: 800;
-            line-height: 1.08;
-            letter-spacing: -0.02em;
-            color: var(--text-primary);
-            margin-bottom: 16px;
-        }
+      .slide-title {
+        font-family: var(--font-display);
+        font-size: 60px;
+        font-weight: 800;
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+      }
 
-        .slide-title .accent { color: var(--cyan); }
-        .slide-title .accent-gold { color: var(--amber); }
+      .slide-title .accent {
+        color: var(--cyan);
+      }
+      .slide-title .accent-gold {
+        color: var(--amber);
+      }
 
-        .slide-subtitle {
-            font-size: 25px;
-            line-height: 1.42;
-            color: var(--text-secondary);
-            max-width: 1520px;
-            margin-bottom: 28px;
-        }
+      .slide-subtitle {
+        font-size: 25px;
+        line-height: 1.42;
+        color: var(--text-secondary);
+        max-width: 1520px;
+        margin-bottom: 28px;
+      }
 
-        /* ===========================================
+      /* ===========================================
            ENTRANCE ANIMATIONS
            =========================================== */
-        .reveal {
-            opacity: 0;
-            transform: translateY(28px);
-            transition: opacity var(--duration-normal) var(--ease-out-expo),
-                        transform var(--duration-normal) var(--ease-out-expo);
-        }
+      .reveal {
+        opacity: 0;
+        transform: translateY(28px);
+        transition:
+          opacity var(--duration-normal) var(--ease-out-expo),
+          transform var(--duration-normal) var(--ease-out-expo);
+      }
 
-        .slide.visible .reveal {
-            opacity: 1;
-            transform: translateY(0);
-        }
+      .slide.visible .reveal {
+        opacity: 1;
+        transform: translateY(0);
+      }
 
-        .d1 { transition-delay: 0.08s; }
-        .d2 { transition-delay: 0.18s; }
-        .d3 { transition-delay: 0.28s; }
-        .d4 { transition-delay: 0.38s; }
+      .d1 {
+        transition-delay: 0.08s;
+      }
+      .d2 {
+        transition-delay: 0.18s;
+      }
+      .d3 {
+        transition-delay: 0.28s;
+      }
+      .d4 {
+        transition-delay: 0.38s;
+      }
 
-        /* ===========================================
+      /* ===========================================
            REUSABLE LAYOUT COMPONENTS (1920x1080 FIXED)
            =========================================== */
-        .card {
-            background: linear-gradient(160deg, rgba(16, 31, 54, 0.92), rgba(10, 20, 36, 0.95));
-            border: 1px solid var(--border-subtle);
-            border-radius: 20px;
-            padding: 28px 32px;
-        }
+      .card {
+        background: linear-gradient(160deg, rgba(16, 31, 54, 0.92), rgba(10, 20, 36, 0.95));
+        border: 1px solid var(--border-subtle);
+        border-radius: 20px;
+        padding: 28px 32px;
+      }
 
-        .card-compact {
-            background: linear-gradient(160deg, rgba(16, 31, 54, 0.92), rgba(10, 20, 36, 0.95));
-            border: 1px solid var(--border-subtle);
-            border-radius: 16px;
-            padding: 20px 24px;
-        }
+      .card-compact {
+        background: linear-gradient(160deg, rgba(16, 31, 54, 0.92), rgba(10, 20, 36, 0.95));
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        padding: 20px 24px;
+      }
 
-        .card-highlight {
-            border-color: var(--border-strong);
-            box-shadow: 0 0 40px rgba(56, 189, 248, 0.09);
-        }
+      .card-highlight {
+        border-color: var(--border-strong);
+        box-shadow: 0 0 40px rgba(56, 189, 248, 0.09);
+      }
 
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; flex: 1; }
-        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
-        .grid-code-split { display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 36px; flex: 1; }
-        .grid-asym { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 34px; flex: 1; min-height: 0; }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 34px;
+        flex: 1;
+        min-height: 0;
+      }
+      .grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+      }
+      .grid-code-split {
+        display: grid;
+        grid-template-columns: 1.12fr 0.88fr;
+        gap: 36px;
+        flex: 1;
+        min-height: 0;
+      }
+      .grid-asym {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 34px;
+        flex: 1;
+        min-height: 0;
+      }
 
-        .code-window {
-            background: #07101e;
-            border: 1px solid var(--border-strong);
-            border-radius: 18px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-        }
+      .card,
+      .card-compact,
+      .code-window,
+      .visual-frame {
+        min-width: 0;
+      }
 
-        .code-window-bar {
-            background: #0e1d33;
-            padding: 13px 22px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid var(--border-subtle);
-            font-family: var(--font-mono);
-            font-size: 15px;
-            color: var(--text-secondary);
-        }
+      .code-window {
+        background: #07101e;
+        border: 1px solid var(--border-strong);
+        border-radius: 18px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      }
 
-        .dots { display: flex; gap: 8px; }
-        .dots span { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-        .dots .r { background: #ef4444; }
-        .dots .y { background: #f59e0b; }
-        .dots .g { background: #10b981; }
+      .code-window-bar {
+        background: #0e1d33;
+        padding: 13px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border-subtle);
+        font-family: var(--font-mono);
+        font-size: 15px;
+        color: var(--text-secondary);
+      }
 
-        .code-body {
-            padding: 24px 28px;
-            font-family: var(--font-mono);
-            font-size: 21px;
-            line-height: 1.56;
-            color: #e2e8f0;
-            white-space: pre;
-        }
+      .dots {
+        display: flex;
+        gap: 8px;
+      }
+      .dots span {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .dots .r {
+        background: #ef4444;
+      }
+      .dots .y {
+        background: #f59e0b;
+      }
+      .dots .g {
+        background: #10b981;
+      }
 
-        .kw { color: #38bdf8; font-weight: 700; }
-        .str { color: #fbbf24; }
-        .num-tok { color: #34d399; font-weight: 600; }
-        .op { color: #f472b6; font-weight: 700; }
-        .cmt { color: #64748b; font-style: italic; }
+      .code-body {
+        padding: 20px 24px;
+        font-family: var(--font-mono);
+        font-size: 18px;
+        line-height: 1.48;
+        color: #e2e8f0;
+        white-space: pre;
+        overflow: hidden;
+      }
 
-        .kpi-big {
-            font-family: var(--font-display);
-            font-size: 68px;
-            font-weight: 800;
-            line-height: 1;
-            color: var(--cyan);
-            margin-bottom: 10px;
-        }
+      .kw {
+        color: #38bdf8;
+        font-weight: 700;
+      }
+      .str {
+        color: #fbbf24;
+      }
+      .num-tok {
+        color: #34d399;
+        font-weight: 600;
+      }
+      .op {
+        color: #f472b6;
+        font-weight: 700;
+      }
+      .cmt {
+        color: #64748b;
+        font-style: italic;
+      }
 
-        .kpi-big.gold { color: var(--amber); }
-        .kpi-big.green { color: var(--emerald); }
+      .kpi-big {
+        font-family: var(--font-display);
+        font-size: 68px;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--cyan);
+        margin-bottom: 10px;
+      }
 
-        .card h3, .card-compact h3 {
-            font-family: var(--font-display);
-            font-size: 26px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            color: var(--text-primary);
-        }
+      .kpi-big.gold {
+        color: var(--amber);
+      }
+      .kpi-big.green {
+        color: var(--emerald);
+      }
 
-        .card p, .card li, .card-compact p, .card-compact li {
-            font-size: 21px;
-            line-height: 1.46;
-            color: var(--text-secondary);
-        }
+      .card h3,
+      .card-compact h3 {
+        font-family: var(--font-display);
+        font-size: 26px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: var(--text-primary);
+      }
 
-        .card ul, .card-compact ul { list-style: none; display: flex; flex-direction: column; gap: 14px; }
-        .card ul li::before, .card-compact ul li::before {
-            content: "▸ ";
-            color: var(--cyan);
-            font-weight: 800;
-        }
+      .card p,
+      .card li,
+      .card-compact p,
+      .card-compact li {
+        font-size: 21px;
+        line-height: 1.46;
+        color: var(--text-secondary);
+      }
 
-        /* ===========================================
+      .card ul,
+      .card-compact ul {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .card ul li::before,
+      .card-compact ul li::before {
+        content: '▸ ';
+        color: var(--cyan);
+        font-weight: 800;
+      }
+
+      /* ===========================================
            SLIDE 1: HERO COVER
            =========================================== */
-        .hero-grid {
-            display: grid;
-            grid-template-columns: 1.25fr 0.75fr;
-            gap: 56px;
-            align-items: center;
-            height: 100%;
-        }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.25fr 0.75fr;
+        gap: 56px;
+        align-items: center;
+        height: 100%;
+      }
 
-        .hero-univ {
-            font-family: var(--font-mono);
-            font-size: 17px;
-            letter-spacing: 0.11em;
-            text-transform: uppercase;
-            color: var(--cyan);
-            margin-bottom: 24px;
-            display: inline-block;
-            padding: 8px 18px;
-            border: 1px solid var(--border-strong);
-            border-radius: 999px;
-            background: rgba(56, 189, 248, 0.08);
-        }
+      .hero-univ {
+        font-family: var(--font-mono);
+        font-size: 17px;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: var(--cyan);
+        margin-bottom: 24px;
+        display: inline-block;
+        padding: 8px 18px;
+        border: 1px solid var(--border-strong);
+        border-radius: 999px;
+        background: rgba(56, 189, 248, 0.08);
+      }
 
-        .hero-title {
-            font-family: var(--font-display);
-            font-size: 112px;
-            font-weight: 800;
-            line-height: 0.96;
-            letter-spacing: -0.03em;
-            margin-bottom: 24px;
-            background: linear-gradient(120deg, #ffffff 15%, #7dd3fc 65%, #fbbf24 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+      .hero-title {
+        font-family: var(--font-display);
+        font-size: 112px;
+        font-weight: 800;
+        line-height: 0.96;
+        letter-spacing: -0.03em;
+        margin-bottom: 24px;
+        background: linear-gradient(120deg, #ffffff 15%, #7dd3fc 65%, #fbbf24 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
 
-        .hero-desc {
-            font-size: 31px;
-            line-height: 1.4;
-            color: #cbd5e1;
-            margin-bottom: 42px;
-            max-width: 960px;
-        }
+      .hero-desc {
+        font-size: 31px;
+        line-height: 1.4;
+        color: #cbd5e1;
+        margin-bottom: 42px;
+        max-width: 960px;
+      }
 
-        .hero-meta-grid {
-            display: grid;
-            grid-template-columns: 0.92fr 1.08fr;
-            gap: 20px;
-        }
+      .hero-meta-grid {
+        display: grid;
+        grid-template-columns: 0.92fr 1.08fr;
+        gap: 20px;
+      }
 
-        .hero-meta-box {
-            background: rgba(12, 23, 41, 0.85);
-            border: 1px solid var(--border-subtle);
-            border-left: 4px solid var(--cyan);
-            border-radius: 14px;
-            padding: 20px 24px;
-        }
+      .hero-meta-box {
+        background: rgba(12, 23, 41, 0.85);
+        border: 1px solid var(--border-subtle);
+        border-left: 4px solid var(--cyan);
+        border-radius: 14px;
+        padding: 20px 24px;
+      }
 
-        .hero-meta-box.gold { border-left-color: var(--amber); }
-        .hero-meta-label {
-            font-family: var(--font-mono);
-            font-size: 14.5px;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--amber);
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-        .hero-meta-box:not(.gold) .hero-meta-label { color: var(--cyan); }
-        .hero-meta-val {
-            font-size: 20px;
-            font-weight: 600;
-            line-height: 1.48;
-            color: var(--text-primary);
-        }
+      .hero-meta-box.gold {
+        border-left-color: var(--amber);
+      }
+      .hero-meta-label {
+        font-family: var(--font-mono);
+        font-size: 14.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--amber);
+        margin-bottom: 10px;
+        font-weight: 700;
+      }
+      .hero-meta-box:not(.gold) .hero-meta-label {
+        color: var(--cyan);
+      }
+      .hero-meta-val {
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1.48;
+        color: var(--text-primary);
+      }
 
-        /* ===========================================
+      /* ===========================================
            SLIDE 4: PIPELINE FLOW
            =========================================== */
-        .pipeline-row {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 22px;
-            margin-top: 20px;
-            flex: 1;
-            align-items: stretch;
-        }
+      .pipeline-row {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 22px;
+        margin-top: 20px;
+        flex: 1;
+        align-items: stretch;
+      }
 
-        .pipe-step {
-            background: linear-gradient(180deg, rgba(16, 31, 54, 0.95), rgba(9, 19, 34, 0.95));
-            border: 1px solid var(--border-subtle);
-            border-top: 5px solid var(--cyan);
-            border-radius: 18px;
-            padding: 28px 24px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
+      .pipe-step {
+        background: linear-gradient(180deg, rgba(16, 31, 54, 0.95), rgba(9, 19, 34, 0.95));
+        border: 1px solid var(--border-subtle);
+        border-top: 5px solid var(--cyan);
+        border-radius: 18px;
+        padding: 28px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
 
-        .pipe-step.s2 { border-top-color: #38bdf8; }
-        .pipe-step.s3 { border-top-color: #10b981; }
-        .pipe-step.s4 { border-top-color: #fbbf24; }
-        .pipe-step.s5 { border-top-color: #a78bfa; }
+      .pipe-step.s2 {
+        border-top-color: #38bdf8;
+      }
+      .pipe-step.s3 {
+        border-top-color: #10b981;
+      }
+      .pipe-step.s4 {
+        border-top-color: #fbbf24;
+      }
+      .pipe-step.s5 {
+        border-top-color: #a78bfa;
+      }
 
-        .pipe-num {
-            font-family: var(--font-mono);
-            font-size: 17px;
-            font-weight: 800;
-            color: var(--cyan);
-            margin-bottom: 14px;
-        }
-        .pipe-title {
-            font-family: var(--font-display);
-            font-size: 27px;
-            font-weight: 800;
-            margin-bottom: 14px;
-            line-height: 1.15;
-        }
-        .pipe-desc {
-            font-size: 20px;
-            color: var(--text-secondary);
-            line-height: 1.45;
-            margin-bottom: 20px;
-        }
-        .pipe-foot {
-            font-family: var(--font-mono);
-            font-size: 16px;
-            color: #e2e8f0;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 10px 14px;
-            border-radius: 10px;
-        }
+      .pipe-num {
+        font-family: var(--font-mono);
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--cyan);
+        margin-bottom: 14px;
+      }
+      .pipe-title {
+        font-family: var(--font-display);
+        font-size: 27px;
+        font-weight: 800;
+        margin-bottom: 14px;
+        line-height: 1.15;
+      }
+      .pipe-desc {
+        font-size: 20px;
+        color: var(--text-secondary);
+        line-height: 1.45;
+        margin-bottom: 20px;
+      }
+      .pipe-foot {
+        font-family: var(--font-mono);
+        font-size: 16px;
+        color: #e2e8f0;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 10px 14px;
+        border-radius: 10px;
+      }
 
-        /* ===========================================
+      /* ===========================================
            SLIDE 5 & 9: VISUAL EVIDENCE CONTAINERS
            =========================================== */
-        .visual-frame {
-            background: #07101e;
-            border: 1px solid var(--border-strong);
-            border-radius: 18px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 56px rgba(0, 0, 0, 0.5);
-            height: 100%;
-        }
+      .visual-frame {
+        background: #07101e;
+        border: 1px solid var(--border-strong);
+        border-radius: 18px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 56px rgba(0, 0, 0, 0.5);
+        height: 100%;
+      }
 
-        .visual-body {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-            background: #060d18;
-            position: relative;
-            overflow: hidden;
-        }
+      .visual-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: #060d18;
+        position: relative;
+        overflow: hidden;
+      }
 
-        .visual-caption {
-            background: #0d1a2d;
-            border-top: 1px solid var(--border-subtle);
-            padding: 12px 20px;
-            font-family: var(--font-mono);
-            font-size: 15px;
-            color: var(--text-secondary);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+      .visual-caption {
+        background: #0d1a2d;
+        border-top: 1px solid var(--border-subtle);
+        padding: 12px 20px;
+        font-family: var(--font-mono);
+        font-size: 15px;
+        color: var(--text-secondary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
 
-        /* Styled 50/50 IDE + 3D Map fallback preview (Slide 9) */
-        .ide-fallback {
-            display: none;
-            width: 100%;
-            height: 100%;
-            gap: 12px;
-        }
-        .ide-pane-code {
-            flex: 0.95;
-            background: #081220;
-            border: 1px solid rgba(56, 189, 248, 0.25);
-            border-radius: 12px;
-            padding: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .ide-pane-map {
-            flex: 1.05;
-            background: radial-gradient(circle at 60% 42%, #13314a 0%, #091726 70%);
-            border: 1px solid rgba(56, 189, 248, 0.35);
-            border-radius: 12px;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 14px;
-        }
+      /* Styled 50/50 IDE + 3D Map preview (Slide 9) */
+      .ide-fallback {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        gap: 12px;
+      }
+      .ide-pane-code {
+        flex: 1;
+        background: #081220;
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+      }
+      .ide-pane-map {
+        flex: 1;
+        background: radial-gradient(circle at 60% 42%, #13314a 0%, #091726 70%);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 14px;
+        min-width: 0;
+      }
 
-        /* ===========================================
+      /* ===========================================
            SLIDE 7: INTERACTIVE PDA SIMULATOR
            =========================================== */
-        .sim-layout {
-            display: grid;
-            grid-template-columns: 1.38fr 0.62fr;
-            gap: 28px;
-            flex: 1;
-            min-height: 0;
+      .sim-layout {
+        display: grid;
+        grid-template-columns: 1.38fr 0.62fr;
+        gap: 28px;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .sim-left {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-height: 0;
+        min-width: 0;
+      }
+
+      .sim-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface-1);
+        border: 1px solid var(--border-strong);
+        border-radius: 14px;
+        padding: 12px 20px;
+      }
+
+      .sim-btn-group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .sim-btn {
+        font-family: var(--font-mono);
+        font-size: 16px;
+        font-weight: 700;
+        padding: 10px 18px;
+        border-radius: 10px;
+        border: 1px solid var(--border-strong);
+        background: #10243f;
+        color: #e0f2fe;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .sim-btn:hover {
+        background: #1d4ed8;
+        color: #fff;
+        border-color: #60a5fa;
+      }
+      .sim-btn.primary {
+        background: #0284c7;
+        color: #fff;
+        border-color: #38bdf8;
+      }
+      .sim-btn.active-mode {
+        background: #10b981;
+        color: #052e16;
+        border-color: #34d399;
+      }
+      .sim-btn.err-mode.active-mode {
+        background: #ef4444;
+        color: #fff;
+        border-color: #f87171;
+      }
+
+      .sim-svg-box {
+        flex: 1;
+        min-height: 0;
+        background: #07101e;
+        border: 1px solid var(--border-subtle);
+        border-radius: 18px;
+        padding: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .sim-tape-box {
+        background: var(--surface-1);
+        border: 1px solid var(--border-subtle);
+        border-radius: 14px;
+        padding: 12px 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow: hidden;
+      }
+
+      .tape-tok {
+        font-family: var(--font-mono);
+        font-size: 14.5px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        background: rgba(148, 163, 184, 0.1);
+        color: var(--text-secondary);
+        border: 1px solid transparent;
+        white-space: nowrap;
+        transition: all 0.25s ease;
+      }
+      .tape-tok.done {
+        background: rgba(16, 185, 129, 0.14);
+        color: #34d399;
+        border-color: rgba(16, 185, 129, 0.3);
+      }
+      .tape-tok.current {
+        background: rgba(56, 189, 248, 0.22);
+        color: #ffffff;
+        border-color: #38bdf8;
+        transform: scale(1.06);
+        font-weight: 800;
+      }
+      .tape-tok.error {
+        background: rgba(239, 68, 68, 0.25);
+        color: #fca5a5;
+        border-color: #f87171;
+        font-weight: 800;
+      }
+
+      .sim-right {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-height: 0;
+        min-width: 0;
+      }
+
+      .stack-panel {
+        flex: 1;
+        min-height: 0;
+        background: var(--surface-1);
+        border: 1px solid var(--border-strong);
+        border-radius: 18px;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .stack-title {
+        font-family: var(--font-mono);
+        font-size: 16.5px;
+        font-weight: 700;
+        color: var(--cyan);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+
+      .stack-visual {
+        flex: 1;
+        background: #060d18;
+        border: 2px dashed rgba(56, 189, 248, 0.25);
+        border-radius: 14px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column-reverse;
+        justify-content: flex-start;
+        gap: 9px;
+        min-height: 270px;
+      }
+
+      .stack-item {
+        font-family: var(--font-mono);
+        font-size: 20px;
+        font-weight: 800;
+        text-align: center;
+        padding: 11px 14px;
+        border-radius: 10px;
+        color: #060d18;
+        animation: popIn 0.3s var(--ease-out-expo);
+      }
+      .stack-Z {
+        background: #475569;
+        color: #f8fafc;
+      }
+      .stack-R {
+        background: #38bdf8;
+        color: #060d18;
+      }
+      .stack-P {
+        background: #fbbf24;
+        color: #060d18;
+      }
+      .stack-A {
+        background: #a78bfa;
+        color: #060d18;
+      }
+      .stack-S {
+        background: #34d399;
+        color: #060d18;
+      }
+
+      @keyframes popIn {
+        from {
+          opacity: 0;
+          transform: translateY(-16px) scale(0.92);
         }
-
-        .sim-left { display: flex; flex-direction: column; gap: 18px; }
-
-        .sim-toolbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--surface-1);
-            border: 1px solid var(--border-strong);
-            border-radius: 14px;
-            padding: 12px 20px;
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
         }
+      }
 
-        .sim-btn-group { display: flex; gap: 10px; align-items: center; }
+      .sim-log-box {
+        background: #07101e;
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        padding: 18px 22px;
+        font-family: var(--font-mono);
+        font-size: 17.5px;
+        line-height: 1.48;
+        min-height: 175px;
+      }
 
-        .sim-btn {
-            font-family: var(--font-mono);
-            font-size: 16px;
-            font-weight: 700;
-            padding: 10px 18px;
-            border-radius: 10px;
-            border: 1px solid var(--border-strong);
-            background: #10243f;
-            color: #e0f2fe;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
+      /* SVG Automaton Node Styles */
+      .pda-node {
+        fill: #0e1e36;
+        stroke: #475569;
+        stroke-width: 3;
+        transition: all 0.25s ease;
+      }
+      .pda-node.active-node {
+        fill: #0369a1;
+        stroke: #38bdf8;
+        stroke-width: 5;
+        filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.85));
+      }
+      .pda-node.accept-node {
+        fill: #065f46;
+        stroke: #34d399;
+        stroke-width: 5;
+        filter: drop-shadow(0 0 14px rgba(16, 185, 129, 0.9));
+      }
+      .pda-node.error-node {
+        fill: #7f1d1d;
+        stroke: #f87171;
+        stroke-width: 5;
+        filter: drop-shadow(0 0 14px rgba(248, 113, 113, 0.9));
+      }
+      .pda-label {
+        fill: #f8fafc;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 16px;
+        font-weight: 700;
+        text-anchor: middle;
+        dominant-baseline: central;
+        pointer-events: none;
+      }
+      .pda-edge {
+        stroke: #334155;
+        stroke-width: 2.6;
+        fill: none;
+      }
+      .pda-edge.active-edge {
+        stroke: #38bdf8;
+        stroke-width: 4.5;
+      }
+      .pda-edge-txt {
+        fill: #94a3b8;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12.5px;
+        text-anchor: middle;
+      }
 
-        .sim-btn:hover { background: #1d4ed8; color: #fff; border-color: #60a5fa; }
-        .sim-btn.primary { background: #0284c7; color: #fff; border-color: #38bdf8; }
-        .sim-btn.active-mode { background: #10b981; color: #052e16; border-color: #34d399; }
-        .sim-btn.err-mode.active-mode { background: #ef4444; color: #fff; border-color: #f87171; }
-
-        .sim-svg-box {
-            flex: 1;
-            background: #07101e;
-            border: 1px solid var(--border-subtle);
-            border-radius: 18px;
-            padding: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .sim-tape-box {
-            background: var(--surface-1);
-            border: 1px solid var(--border-subtle);
-            border-radius: 14px;
-            padding: 14px 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            overflow: hidden;
-        }
-
-        .tape-tok {
-            font-family: var(--font-mono);
-            font-size: 16px;
-            padding: 7px 12px;
-            border-radius: 8px;
-            background: rgba(148, 163, 184, 0.1);
-            color: var(--text-secondary);
-            border: 1px solid transparent;
-            white-space: nowrap;
-            transition: all 0.25s ease;
-        }
-        .tape-tok.done { background: rgba(16, 185, 129, 0.14); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
-        .tape-tok.current { background: rgba(56, 189, 248, 0.22); color: #ffffff; border-color: #38bdf8; transform: scale(1.06); font-weight: 800; }
-        .tape-tok.error { background: rgba(239, 68, 68, 0.25); color: #fca5a5; border-color: #f87171; font-weight: 800; }
-
-        .sim-right { display: flex; flex-direction: column; gap: 18px; }
-
-        .stack-panel {
-            flex: 1;
-            background: var(--surface-1);
-            border: 1px solid var(--border-strong);
-            border-radius: 18px;
-            padding: 20px 24px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .stack-title {
-            font-family: var(--font-mono);
-            font-size: 16.5px;
-            font-weight: 700;
-            color: var(--cyan);
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            margin-bottom: 14px;
-        }
-
-        .stack-visual {
-            flex: 1;
-            background: #060d18;
-            border: 2px dashed rgba(56, 189, 248, 0.25);
-            border-radius: 14px;
-            padding: 14px;
-            display: flex;
-            flex-direction: column-reverse;
-            justify-content: flex-start;
-            gap: 9px;
-            min-height: 270px;
-        }
-
-        .stack-item {
-            font-family: var(--font-mono);
-            font-size: 20px;
-            font-weight: 800;
-            text-align: center;
-            padding: 11px 14px;
-            border-radius: 10px;
-            color: #060d18;
-            animation: popIn 0.3s var(--ease-out-expo);
-        }
-        .stack-Z { background: #475569; color: #f8fafc; }
-        .stack-R { background: #38bdf8; color: #060d18; }
-        .stack-P { background: #fbbf24; color: #060d18; }
-        .stack-A { background: #a78bfa; color: #060d18; }
-        .stack-S { background: #34d399; color: #060d18; }
-
-        @keyframes popIn {
-            from { opacity: 0; transform: translateY(-16px) scale(0.92); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .sim-log-box {
-            background: #07101e;
-            border: 1px solid var(--border-subtle);
-            border-radius: 16px;
-            padding: 18px 22px;
-            font-family: var(--font-mono);
-            font-size: 17.5px;
-            line-height: 1.48;
-            min-height: 175px;
-        }
-
-        /* SVG Automaton Node Styles */
-        .pda-node { fill: #0e1e36; stroke: #475569; stroke-width: 3; transition: all 0.25s ease; }
-        .pda-node.active-node { fill: #0369a1; stroke: #38bdf8; stroke-width: 5; filter: drop-shadow(0 0 12px rgba(56,189,248,0.85)); }
-        .pda-node.accept-node { fill: #065f46; stroke: #34d399; stroke-width: 5; filter: drop-shadow(0 0 14px rgba(16,185,129,0.9)); }
-        .pda-node.error-node { fill: #7f1d1d; stroke: #f87171; stroke-width: 5; filter: drop-shadow(0 0 14px rgba(248,113,113,0.9)); }
-        .pda-label { fill: #f8fafc; font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-        .pda-edge { stroke: #334155; stroke-width: 2.6; fill: none; }
-        .pda-edge.active-edge { stroke: #38bdf8; stroke-width: 4.5; }
-        .pda-edge-txt { fill: #94a3b8; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; text-anchor: middle; }
-
-        /* ===========================================
+      /* ===========================================
            PROGRESS BAR & CONTROLS (OUTSIDE STAGE)
            =========================================== */
-        .progress-track {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.06);
-            z-index: 1001;
-        }
-        .progress-fill {
-            height: 100%;
-            width: 10%;
-            background: linear-gradient(90deg, #38bdf8, #fbbf24);
-            transition: width 0.35s var(--ease-out-expo);
-        }
+      .progress-track {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.06);
+        z-index: 1001;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 10%;
+        background: linear-gradient(90deg, #38bdf8, #fbbf24);
+        transition: width 0.35s var(--ease-out-expo);
+      }
 
-        .ctrl-btn {
-            background: transparent;
-            border: 1px solid rgba(148, 163, 184, 0.3);
-            color: #e2e8f0;
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.15s ease;
-        }
-        .ctrl-btn:hover { background: var(--cyan); color: #060d18; border-color: var(--cyan); }
-        .ctrl-counter {
-            font-family: var(--font-mono);
-            font-size: 14px;
-            font-weight: 700;
-            color: #cbd5e1;
-            min-width: 68px;
-            text-align: center;
-        }
+      .ctrl-btn {
+        background: transparent;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        color: #e2e8f0;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+      }
+      .ctrl-btn:hover {
+        background: var(--cyan);
+        color: #060d18;
+        border-color: var(--cyan);
+      }
+      .ctrl-counter {
+        font-family: var(--font-mono);
+        font-size: 14px;
+        font-weight: 700;
+        color: #cbd5e1;
+        min-width: 68px;
+        text-align: center;
+      }
 
-        /* ===========================================
+      /* ===========================================
            INLINE EDITING (JS HOVER HOTZONE)
            =========================================== */
-        .edit-hotzone { position: fixed; top: 0; left: 0; width: 80px; height: 80px; z-index: 10000; cursor: pointer; }
-        .edit-toggle {
-            position: fixed; top: 16px; left: 16px;
-            opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 10001;
-            background: rgba(12, 23, 41, 0.92); border: 1px solid var(--border-strong);
-            color: #f8fafc; padding: 8px 14px; border-radius: 10px;
-            font-family: var(--font-mono); font-size: 13px; cursor: pointer;
-        }
-        .edit-toggle.show, .edit-toggle.active { opacity: 1; pointer-events: auto; }
-        .edit-toggle.active { background: #10b981; color: #052e16; border-color: #34d399; }
-        [contenteditable="true"] { outline: 2px dashed rgba(56, 189, 248, 0.65); border-radius: 6px; }
+      .edit-hotzone {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 80px;
+        height: 80px;
+        z-index: 10000;
+        cursor: pointer;
+      }
+      .edit-toggle {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        z-index: 10001;
+        background: rgba(12, 23, 41, 0.92);
+        border: 1px solid var(--border-strong);
+        color: #f8fafc;
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .edit-toggle.show,
+      .edit-toggle.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .edit-toggle.active {
+        background: #10b981;
+        color: #052e16;
+        border-color: #34d399;
+      }
+      [contenteditable='true'] {
+        outline: 2px dashed rgba(56, 189, 248, 0.65);
+        border-radius: 6px;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <!-- Progress bar outside stage -->
     <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
 
@@ -793,48 +1072,50 @@
     <button class="edit-toggle" id="editToggle" title="Modo edición (E)">✏️ Editar (E)</button>
 
     <div class="deck-viewport">
-        <main class="deck-stage" id="deckStage">
-
-            <!-- ===================================================
+      <main class="deck-stage" id="deckStage">
+        <!-- ===================================================
                  SLIDE 1: PORTADA OFICIAL (SOLO TEXTO · COINSI 2026)
                  =================================================== -->
-            <section class="slide active visible" data-slide="1">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner">
-                    <div class="hero-grid">
-                        <div>
-                            <div class="hero-univ reveal d1">UNA PUNO · EPIS · COINSI 2026 — CONCURSO DE PROYECTOS ESTUDIANTILES</div>
-                            <h1 class="hero-title reveal d2">TOUR-LANG</h1>
-                            <p class="hero-desc reveal d3">
-                                Compilador y Lenguaje de Dominio Específico (DSL) basado en Autómatas para el Modelado y Visualización de Rutas Turísticas en Puno.
-                            </p>
-                            <div class="hero-meta-grid reveal d4">
-                                <div class="hero-meta-box">
-                                    <div class="hero-meta-label">Equipo Desarrollador</div>
-                                    <div class="hero-meta-val">
-                                        Kriss Katherine Aico Ramos<br>
-                                        Julissa Esther Mestas Huanca<br>
-                                        Anthony Junior Quispe Cruz
-                                    </div>
-                                </div>
-                                <div class="hero-meta-box gold">
-                                    <div class="hero-meta-label">VI Congreso Internacional de Ingeniería de Sistemas (COINSI 2026)</div>
-                                    <div class="hero-meta-val">
-                                        Compiladores — V Semestre, Grupo A<br>
-                                        Área: Ciencias de la Computación<br>
-                                        Asesor: Ing. Victor Hugo Bejar Gonzales
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+        <section class="slide active visible" data-slide="1">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner">
+            <div class="hero-grid">
+              <div>
+                <div class="hero-univ reveal d1">
+                  UNA PUNO · EPIS · COINSI 2026 — CONCURSO DE PROYECTOS ESTUDIANTILES
+                </div>
+                <h1 class="hero-title reveal d2">TOUR-LANG</h1>
+                <p class="hero-desc reveal d3">
+                  Compilador y Lenguaje de Dominio Específico (DSL) basado en Autómatas para el Modelado y Visualización
+                  de Rutas Turísticas en Puno.
+                </p>
+                <div class="hero-meta-grid reveal d4">
+                  <div class="hero-meta-box">
+                    <div class="hero-meta-label">Equipo Desarrollador</div>
+                    <div class="hero-meta-val">
+                      Kriss Katherine Aico Ramos<br />
+                      Julissa Esther Mestas Huanca<br />
+                      Anthony Junior Quispe Cruz
+                    </div>
+                  </div>
+                  <div class="hero-meta-box gold">
+                    <div class="hero-meta-label">VI Congreso Internacional de Ingeniería de Sistemas (COINSI 2026)</div>
+                    <div class="hero-meta-val">
+                      Compiladores — V Semestre, Grupo A<br />
+                      Área: Ciencias de la Computación<br />
+                      Asesor: Ing. Victor Hugo Bejar Gonzales
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                        <div class="code-window reveal d4">
-                            <div class="code-window-bar">
-                                <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-                                <span>gran_ruta_puno.tl</span>
-                            </div>
-                            <div class="code-body"><span class="kw">INICIO_RUTA</span> <span class="str">"Gran Ruta Cultural"</span> <span class="op">:&gt;</span>
+              <div class="code-window reveal d4">
+                <div class="code-window-bar">
+                  <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                  <span>gran_ruta_puno.tl</span>
+                </div>
+                <div class="code-body"><span class="kw">INICIO_RUTA</span> <span class="str">"Gran Ruta Cultural"</span> <span class="op">:&gt;</span>
   <span class="kw">ORIGEN</span> <span class="str">"Puno"</span> <span class="op">:&gt;</span>
   <span class="kw">INICIO_PARADA</span> <span class="str">"Sillustani"</span> <span class="op">:&gt;</span>
     <span class="kw">UBICACION</span> <span class="op">=</span> [<span class="num-tok">-15.723</span>, <span class="num-tok">-70.147</span>] <span class="op">:&gt;</span>
@@ -845,66 +1126,66 @@
   <span class="kw">COSTO</span> <span class="op">=</span> <span class="num-tok">90</span> <span class="op">:&gt;</span>
   <span class="kw">MOSTRAR_RUTA</span> <span class="op">:&gt;</span>
 <span class="kw">FIN_RUTA</span> <span class="op">:&gt;</span></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+              </div>
+            </div>
+          </div>
+        </section>
 
-            <!-- ===================================================
+        <!-- ===================================================
                  SLIDE 2: EL PROBLEMA Y EL FIN DEL PROYECTO (SINTETIZADO)
                  =================================================== -->
-            <section class="slide" data-slide="2">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner">
-                    <div class="slide-topbar">
-                        <div class="slide-tag"><span class="num">01</span> Propósito y Problemática</div>
-                        <div class="speaker-pill">Expositora: Kriss Katherine Aico Ramos</div>
-                    </div>
-                    <h2 class="slide-title reveal d1">¿Por qué crear <span class="accent">TOUR-LANG</span>?</h2>
-                    <p class="slide-subtitle reveal d2">
-                        Aplicamos teoría formal de compiladores para validar y visualizar circuitos turísticos reales de Puno.
-                    </p>
-                    <div class="grid-2 reveal d3">
-                        <div class="card">
-                            <h3 style="color: var(--coral);">El Problema Actual</h3>
-                            <ul>
-                                <li>Rutas en Puno redactadas en texto libre sin validación formal.</li>
-                                <li>Errores silenciosos: coordenadas inválidas, costos negativos o lluvia &gt; 100%.</li>
-                                <li>Herramientas SIG genéricas carecen de gramática declarativa y reglas presupuestarias.</li>
-                            </ul>
-                        </div>
-                        <div class="card card-highlight">
-                            <h3 style="color: var(--emerald);">El Fin de Nuestro Proyecto</h3>
-                            <ul>
-                                <li><strong>Crear un DSL en español</strong> diseñado para circuitos del Altiplano.</li>
-                                <li><strong>Validar en 3 fases:</strong> Léxica (AFD), Sintáctica (PDA) y Semántica.</li>
-                                <li><strong>Compilar a mapas reales</strong> sobre carreteras OSRM/Valhalla y terreno 3D.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </section>
+        <section class="slide" data-slide="2">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner">
+            <div class="slide-topbar">
+              <div class="slide-tag"><span class="num">01</span> Propósito y Problemática</div>
+              <div class="speaker-pill">Expositora: Kriss Katherine Aico Ramos</div>
+            </div>
+            <h2 class="slide-title reveal d1">¿Por qué crear <span class="accent">TOUR-LANG</span>?</h2>
+            <p class="slide-subtitle reveal d2">
+              Aplicamos teoría formal de compiladores para validar y visualizar circuitos turísticos reales de Puno.
+            </p>
+            <div class="grid-2 reveal d3">
+              <div class="card">
+                <h3 style="color: var(--coral)">El Problema Actual</h3>
+                <ul>
+                  <li>Rutas en Puno redactadas en texto libre sin validación formal.</li>
+                  <li>Errores silenciosos: coordenadas inválidas, costos negativos o lluvia &gt; 100%.</li>
+                  <li>Herramientas SIG genéricas carecen de gramática declarativa y reglas presupuestarias.</li>
+                </ul>
+              </div>
+              <div class="card card-highlight">
+                <h3 style="color: var(--emerald)">El Fin de Nuestro Proyecto</h3>
+                <ul>
+                  <li><strong>Crear un DSL en español</strong> diseñado para circuitos del Altiplano.</li>
+                  <li><strong>Validar en 3 fases:</strong> Léxica (AFD), Sintáctica (PDA) y Semántica.</li>
+                  <li><strong>Compilar a mapas reales</strong> sobre carreteras OSRM/Valhalla y terreno 3D.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
 
-            <!-- ===================================================
+        <!-- ===================================================
                  SLIDE 3: ANATOMÍA DEL LENGUAJE TOUR-LANG
                  =================================================== -->
-            <section class="slide" data-slide="3">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner">
-                    <div class="slide-topbar">
-                        <div class="slide-tag"><span class="num">02</span> Diseño del Lenguaje (DSL)</div>
-                        <div class="speaker-pill">Expositora: Kriss Katherine Aico Ramos</div>
-                    </div>
-                    <h2 class="slide-title reveal d1">Sintaxis diseñada para el <span class="accent-gold">Altiplano</span></h2>
-                    <div class="grid-code-split reveal d2" style="margin-top: 10px;">
-                        <div class="code-window">
-                            <div class="code-window-bar">
-                                <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-                                <span>circuito_sur_mistico.tl</span>
-                            </div>
-                            <div class="code-body"><span class="kw">INICIO_RUTA</span> <span class="str">"Circuito Sur Mistico"</span> <span class="op">:&gt;</span>
+        <section class="slide" data-slide="3">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner">
+            <div class="slide-topbar">
+              <div class="slide-tag"><span class="num">02</span> Diseño del Lenguaje (DSL)</div>
+              <div class="speaker-pill">Expositora: Kriss Katherine Aico Ramos</div>
+            </div>
+            <h2 class="slide-title reveal d1">Sintaxis diseñada para el <span class="accent-gold">Altiplano</span></h2>
+            <div class="grid-code-split reveal d2" style="margin-top: 10px">
+              <div class="code-window">
+                <div class="code-window-bar">
+                  <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                  <span>circuito_sur_mistico.tl</span>
+                </div>
+                <div class="code-body" style="font-size: 17.5px; line-height: 1.44"><span class="kw">INICIO_RUTA</span> <span class="str">"Circuito Sur Mistico"</span> <span class="op">:&gt;</span>
   <span class="kw">ORIGEN</span> <span class="str">"Puno"</span> <span class="op">:&gt;</span>
   <span class="kw">INICIO_PARADA</span> <span class="str">"Aramu Muru"</span> <span class="op">:&gt;</span>
     <span class="kw">UBICACION</span> <span class="op">=</span> [<span class="num-tok">-16.115</span>, <span class="num-tok">-69.425</span>] <span class="op">:&gt;</span>
@@ -921,455 +1202,876 @@
   <span class="kw">FIN</span> <span class="op">:&gt;</span>
   <span class="kw">MOSTRAR_RUTA</span> <span class="op">:&gt;</span>
 <span class="kw">FIN_RUTA</span> <span class="op">:&gt;</span></div>
-                        </div>
-                        <div style="display: flex; flex-direction: column; gap: 22px; justify-content: center;">
-                            <div class="card card-highlight">
-                                <h3 style="color: var(--cyan);">37 Tokens Formales</h3>
-                                <p>23 reservadas en mayúsculas, 11 símbolos y 3 dinámicos (<code style="font-family:var(--font-mono);color:#fbbf24;">ID, NUM, CADENA</code>).</p>
-                            </div>
-                            <div class="card">
-                                <h3 style="color: var(--amber);">Terminador Propio <code style="font-family:var(--font-mono);">:&gt;</code></h3>
-                                <p>Cierra cada instrucción y valida reconocimiento compuesto por <em>Maximal Munch</em>.</p>
-                            </div>
-                            <div class="card">
-                                <h3 style="color: var(--emerald);">Coordenadas Negativas Nativas</h3>
-                                <p>Soporte directo para latitud y longitud andinas <code style="font-family:var(--font-mono);">[-16.115, -69.425]</code>.</p>
-                            </div>
-                        </div>
-                    </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 22px; justify-content: center">
+                <div class="card card-highlight">
+                  <h3 style="color: var(--cyan)">37 Tokens Formales</h3>
+                  <p>
+                    23 reservadas en mayúsculas, 11 símbolos y 3 dinámicos (<code
+                      style="font-family: var(--font-mono); color: #fbbf24"
+                      >ID, NUM, CADENA</code
+                    >).
+                  </p>
                 </div>
-            </section>
+                <div class="card">
+                  <h3 style="color: var(--amber)">
+                    Terminador Propio <code style="font-family: var(--font-mono)">:&gt;</code>
+                  </h3>
+                  <p>Cierra cada instrucción y valida reconocimiento compuesto por <em>Maximal Munch</em>.</p>
+                </div>
+                <div class="card">
+                  <h3 style="color: var(--emerald)">Coordenadas Negativas Nativas</h3>
+                  <p>
+                    Soporte directo para latitud y longitud andinas
+                    <code style="font-family: var(--font-mono)">[-16.115, -69.425]</code>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-            <!-- ===================================================
+        <!-- ===================================================
                  SLIDE 4: ARQUITECTURA EN PIPELINE (Γ = {Z, R, P, A, S})
                  =================================================== -->
-            <section class="slide" data-slide="4">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner">
-                    <div class="slide-topbar">
-                        <div class="slide-tag"><span class="num">03</span> Arquitectura del Sistema</div>
-                        <div class="speaker-pill">Expositora: Kriss Katherine Aico Ramos</div>
-                    </div>
-                    <h2 class="slide-title reveal d1">Pipeline de Compilación <span class="accent">End-to-End</span></h2>
-                    <p class="slide-subtitle reveal d2">
-                        Cada programa <code style="font-family:var(--font-mono);color:var(--cyan);">.tl</code> atraviesa 4 fases deterministas en tiempo lineal <strong>O(n)</strong>.
-                    </p>
-                    <div class="pipeline-row reveal d3">
-                        <div class="pipe-step">
-                            <div>
-                                <div class="pipe-num">FASE 0</div>
-                                <div class="pipe-title">Código Fuente</div>
-                                <p class="pipe-desc">DSL declarativo con rutas, paradas, clima y reglas condicionales.</p>
-                            </div>
-                            <div class="pipe-foot">30 Ejercicios Puno</div>
-                        </div>
-                        <div class="pipe-step s2">
-                            <div>
-                                <div class="pipe-num">FASE 1 · LÉXICA</div>
-                                <div class="pipe-title">AFD Léxico</div>
-                                <p class="pipe-desc">Autómata Finito de 140 estados, 4 ramas y 5 errores (E1–E5).</p>
-                            </div>
-                            <div class="pipe-foot">37 Tipos de Token</div>
-                        </div>
-                        <div class="pipe-step s3">
-                            <div>
-                                <div class="pipe-num">FASE 2 · SINTÁCTICA</div>
-                                <div class="pipe-title">PDA JFLAP</div>
-                                <p class="pipe-desc">Autómata de Pila de 36 estados con memoria Γ = {Z, R, P, A, S}.</p>
-                            </div>
-                            <div class="pipe-foot">Estado qF + Pila ∅</div>
-                        </div>
-                        <div class="pipe-step s4">
-                            <div>
-                                <div class="pipe-num">FASE 3 · SEMÁNTICA</div>
-                                <div class="pipe-title">Tabla de Símbolos</div>
-                                <p class="pipe-desc">Valida ámbitos, tipos, unicidad, rangos [0, 100] y dominio Puno.</p>
-                            </div>
-                            <div class="pipe-foot">Modelo IR Validado</div>
-                        </div>
-                        <div class="pipe-step s5">
-                            <div>
-                                <div class="pipe-num">FASE 4 · EJECUCIÓN</div>
-                                <div class="pipe-title">Web 2D / 3D</div>
-                                <p class="pipe-desc">Carreteras reales OSRM/Valhalla, Leaflet, MapLibre 3D y GeoJSON.</p>
-                            </div>
-                            <div class="pipe-foot">Python + Streamlit</div>
-                        </div>
-                    </div>
+        <section class="slide" data-slide="4">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner">
+            <div class="slide-topbar">
+              <div class="slide-tag"><span class="num">03</span> Arquitectura del Sistema</div>
+              <div class="speaker-pill">Expositora: Kriss Katherine Aico Ramos</div>
+            </div>
+            <h2 class="slide-title reveal d1">Pipeline de Compilación <span class="accent">End-to-End</span></h2>
+            <p class="slide-subtitle reveal d2">
+              Cada programa <code style="font-family: var(--font-mono); color: var(--cyan)">.tl</code> atraviesa 4 fases
+              deterministas en tiempo lineal <strong>O(n)</strong>.
+            </p>
+            <div class="pipeline-row reveal d3">
+              <div class="pipe-step">
+                <div>
+                  <div class="pipe-num">FASE 0</div>
+                  <div class="pipe-title">Código Fuente</div>
+                  <p class="pipe-desc">DSL declarativo con rutas, paradas, clima y reglas condicionales.</p>
                 </div>
-            </section>
+                <div class="pipe-foot">30 Ejercicios Puno</div>
+              </div>
+              <div class="pipe-step s2">
+                <div>
+                  <div class="pipe-num">FASE 1 · LÉXICA</div>
+                  <div class="pipe-title">AFD Léxico</div>
+                  <p class="pipe-desc">Autómata Finito de 140 estados, 4 ramas y 5 errores (E1–E5).</p>
+                </div>
+                <div class="pipe-foot">37 Tipos de Token</div>
+              </div>
+              <div class="pipe-step s3">
+                <div>
+                  <div class="pipe-num">FASE 2 · SINTÁCTICA</div>
+                  <div class="pipe-title">PDA JFLAP</div>
+                  <p class="pipe-desc">Autómata de Pila de 36 estados con memoria Γ = {Z, R, P, A, S}.</p>
+                </div>
+                <div class="pipe-foot">Estado qF + Pila ∅</div>
+              </div>
+              <div class="pipe-step s4">
+                <div>
+                  <div class="pipe-num">FASE 3 · SEMÁNTICA</div>
+                  <div class="pipe-title">Tabla de Símbolos</div>
+                  <p class="pipe-desc">Valida ámbitos, tipos, unicidad, rangos [0, 100] y dominio Puno.</p>
+                </div>
+                <div class="pipe-foot">Modelo IR Validado</div>
+              </div>
+              <div class="pipe-step s5">
+                <div>
+                  <div class="pipe-num">FASE 4 · EJECUCIÓN</div>
+                  <div class="pipe-title">Web 2D / 3D</div>
+                  <p class="pipe-desc">Carreteras reales OSRM/Valhalla, Leaflet, MapLibre 3D y GeoJSON.</p>
+                </div>
+                <div class="pipe-foot">Python + Streamlit</div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-            <!-- ===================================================
+        <!-- ===================================================
                  SLIDE 5: FASE 1 — ANALIZADOR LÉXICO + DIAGRAMA AFD
                  =================================================== -->
-            <section class="slide" data-slide="5">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner">
-                    <div class="slide-topbar">
-                        <div class="slide-tag"><span class="num">04</span> Fase 1 · Análisis Léxico</div>
-                        <div class="speaker-pill">Expositora: Kriss Katherine Aico Ramos</div>
-                    </div>
-                    <h2 class="slide-title reveal d1">AFD Léxico: <span class="accent">140 Estados</span> y 4 Ramas</h2>
-                    <p class="slide-subtitle reveal d2">
-                        Complejidad <strong>O(n)</strong> desde <code style="font-family:var(--font-mono);color:var(--cyan);">q0</code> con 37 tokens y detección exacta de errores <strong>E1–E5</strong>.
-                    </p>
-                    <div class="grid-asym reveal d3">
-                        <div style="display:flex; flex-direction:column; gap:16px; justify-content:center;">
-                            <div class="card-compact card-highlight">
-                                <h3 style="color: var(--cyan); font-size:23px;">Rama 1 · Reservadas e IDs (q1–q126)</h3>
-                                <p style="font-size:19px;">23 palabras reservadas en MAYÚSCULAS; extensión <code style="font-family:var(--font-mono);">[A-Za-z0-9_]</code> pasa a <strong>q126 (ID)</strong>.</p>
-                            </div>
-                            <div class="card-compact">
-                                <h3 style="color: var(--emerald); font-size:23px;">Rama 2 · Cadenas de Texto (q127–q128)</h3>
-                                <p style="font-size:19px;">Literales entre comillas dobles; salto de línea o EOF sin cierre dispara <strong style="color:var(--coral);">Error E1</strong>.</p>
-                            </div>
-                            <div class="card-compact">
-                                <h3 style="color: var(--amber); font-size:23px;">Rama 3 · Números con Signo (q129–q132)</h3>
-                                <p style="font-size:19px;">Enteros y decimales negativos (<code style="font-family:var(--font-mono);">-15.723</code>); rechaza <code style="font-family:var(--font-mono);">-</code> solo (<strong style="color:var(--coral);">E2</strong>) y mal decimal (<strong style="color:var(--coral);">E3</strong>).</p>
-                            </div>
-                            <div class="card-compact">
-                                <h3 style="color: #f472b6; font-size:23px;">Rama 4 · Operadores y :&gt; (q133–q140)</h3>
-                                <p style="font-size:19px;"><strong>Maximal Munch</strong> distingue <code style="font-family:var(--font-mono);">&lt;=</code> y <code style="font-family:var(--font-mono);">:&gt;</code>; detecta <code style="font-family:var(--font-mono);">:</code> sin <code style="font-family:var(--font-mono);">&gt;</code> (<strong style="color:var(--coral);">E4</strong>) y ajenos a Σ (<strong style="color:var(--coral);">E5</strong>).</p>
-                            </div>
-                        </div>
+        <section class="slide" data-slide="5">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner">
+            <div class="slide-topbar">
+              <div class="slide-tag"><span class="num">04</span> Fase 1 · Análisis Léxico</div>
+              <div class="speaker-pill">Expositora: Kriss Katherine Aico Ramos</div>
+            </div>
+            <h2 class="slide-title reveal d1">AFD Léxico: <span class="accent">140 Estados</span> y 4 Ramas</h2>
+            <p class="slide-subtitle reveal d2">
+              Complejidad <strong>O(n)</strong> desde
+              <code style="font-family: var(--font-mono); color: var(--cyan)">q0</code> con 37 tokens y detección exacta
+              de errores <strong>E1–E5</strong>.
+            </p>
+            <div class="visual-frame reveal d3" style="flex: 1; min-height: 0">
+              <div class="code-window-bar">
+                <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <span>AFD Léxico · 140 Estados y 4 Ramas (SVG Nativo)</span>
+              </div>
+              <div class="visual-body" style="background: #060d18; padding: 12px 18px">
+                <svg viewBox="0 0 760 520" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" style="background: #060d18; border-radius: 10px">
+                  <defs>
+                    <marker
+                      id="afdArrCyan"
+                      viewBox="0 0 10 10"
+                      refX="8"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto"
+                    >
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+                    </marker>
+                    <marker
+                      id="afdArrEmerald"
+                      viewBox="0 0 10 10"
+                      refX="8"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto"
+                    >
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+                    </marker>
+                    <marker
+                      id="afdArrAmber"
+                      viewBox="0 0 10 10"
+                      refX="8"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto"
+                    >
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#fbbf24" />
+                    </marker>
+                    <marker
+                      id="afdArrPink"
+                      viewBox="0 0 10 10"
+                      refX="8"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto"
+                    >
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#f472b6" />
+                    </marker>
+                  </defs>
 
-                        <div class="visual-frame">
-                            <div class="code-window-bar">
-                                <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-                                <span>docs/afd_resumen.png · AFD 4 Ramas</span>
-                            </div>
-                            <div class="visual-body" style="background:#ffffff; padding:14px;">
-                                <img src="docs/afd_resumen.png" alt="Diagrama del AFD Léxico de TOUR-LANG" style="width:100%; height:100%; max-height:515px; object-fit:contain;">
-                            </div>
-                            <div class="visual-caption">
-                                <span>Modelo M_lex = (Q, Σ, δ, q0, F, E)</span>
-                                <span style="color:var(--cyan);">140 estados · 5 errores</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+                  <!-- Flecha de entrada hacia q0 -->
+                  <line
+                    x1="16"
+                    y1="260"
+                    x2="64"
+                    y2="260"
+                    stroke="#38bdf8"
+                    stroke-width="2.5"
+                    marker-end="url(#afdArrCyan)"
+                  />
 
-            <!-- ===================================================
+                  <!-- Nodo inicial q0 -->
+                  <circle cx="112" cy="260" r="42" fill="#0c243e" stroke="#38bdf8" stroke-width="3" />
+                  <text
+                    x="112"
+                    y="253"
+                    fill="#f8fafc"
+                    font-family="JetBrains Mono, monospace"
+                    font-size="18"
+                    font-weight="800"
+                    text-anchor="middle"
+                  >
+                    q0
+                  </text>
+                  <text
+                    x="112"
+                    y="274"
+                    fill="#7dd3fc"
+                    font-family="Plus Jakarta Sans, sans-serif"
+                    font-size="12"
+                    font-weight="600"
+                    text-anchor="middle"
+                  >
+                    (Inicial)
+                  </text>
+
+                  <!-- Texto de blancos debajo de q0 -->
+                  <text
+                    x="112"
+                    y="324"
+                    fill="#94a3b8"
+                    font-family="JetBrains Mono, monospace"
+                    font-size="11.5"
+                    font-style="italic"
+                    text-anchor="middle"
+                  >
+                    Blancos ( , \t, \n)
+                  </text>
+                  <text
+                    x="112"
+                    y="341"
+                    fill="#94a3b8"
+                    font-family="Plus Jakarta Sans, sans-serif"
+                    font-size="11.5"
+                    font-style="italic"
+                    text-anchor="middle"
+                  >
+                    se omiten
+                  </text>
+
+                  <!-- Cuatro flechas curvas desde q0 hacia las 4 ramas -->
+                  <path
+                    d="M 142 230 C 180 145, 196 73, 242 73"
+                    fill="none"
+                    stroke="#38bdf8"
+                    stroke-width="2.5"
+                    marker-end="url(#afdArrCyan)"
+                  />
+                  <path
+                    d="M 152 248 C 192 225, 206 197, 242 197"
+                    fill="none"
+                    stroke="#10b981"
+                    stroke-width="2.5"
+                    marker-end="url(#afdArrEmerald)"
+                  />
+                  <path
+                    d="M 152 272 C 192 295, 206 321, 242 321"
+                    fill="none"
+                    stroke="#fbbf24"
+                    stroke-width="2.5"
+                    marker-end="url(#afdArrAmber)"
+                  />
+                  <path
+                    d="M 142 290 C 180 375, 196 446, 242 446"
+                    fill="none"
+                    stroke="#f472b6"
+                    stroke-width="2.5"
+                    marker-end="url(#afdArrPink)"
+                  />
+
+                  <!-- Rama 1: Reservadas e IDs -->
+                  <rect
+                    x="248"
+                    y="20"
+                    width="494"
+                    height="106"
+                    rx="12"
+                    fill="#0b1d33"
+                    stroke="#38bdf8"
+                    stroke-width="2"
+                  />
+                  <text x="268" y="46" fill="#38bdf8" font-family="Syne, sans-serif" font-size="15" font-weight="700">Rama 1 · Reservadas e IDs (q1–q126)</text>
+                  <text x="268" y="69" fill="#cbd5e1" font-family="Plus Jakarta Sans, sans-serif" font-size="11.5">Reconoce 23 palabras reservadas en MAYÚSCULAS (<tspan font-family="JetBrains Mono, monospace" fill="#7dd3fc">INICIO_RUTA</tspan>, <tspan font-family="JetBrains Mono, monospace" fill="#7dd3fc">ORIGEN</tspan>,</text>
+                  <text x="268" y="88" fill="#cbd5e1" font-family="Plus Jakarta Sans, sans-serif" font-size="11.5"><tspan font-family="JetBrains Mono, monospace" fill="#7dd3fc">INICIO_PARADA</tspan>, <tspan font-family="JetBrains Mono, monospace" fill="#7dd3fc">UBICACION</tspan>, <tspan font-family="JetBrains Mono, monospace" fill="#7dd3fc">SI</tspan>, <tspan font-family="JetBrains Mono, monospace" fill="#7dd3fc">MOSTRAR_RUTA</tspan>, etc.);</text>
+                  <text x="268" y="108" fill="#94a3b8" font-family="Plus Jakarta Sans, sans-serif" font-size="11.5">si continúa con <tspan font-family="JetBrains Mono, monospace" fill="#e2e8f0">[A-Za-z0-9_]</tspan> transita a <tspan font-family="JetBrains Mono, monospace" fill="#38bdf8" font-weight="700">q126 (ID)</tspan>.</text>
+
+                  <!-- Rama 2: Cadenas de Texto -->
+                  <rect
+                    x="248"
+                    y="144"
+                    width="494"
+                    height="106"
+                    rx="12"
+                    fill="#09211d"
+                    stroke="#10b981"
+                    stroke-width="2"
+                  />
+                  <text x="268" y="172" fill="#10b981" font-family="Syne, sans-serif" font-size="15" font-weight="700">Rama 2 · Cadenas de Texto (q127–q128 | Error E1)</text>
+                  <text x="268" y="198" fill="#cbd5e1" font-family="Plus Jakarta Sans, sans-serif" font-size="12">Consume <tspan font-family="JetBrains Mono, monospace" fill="#6ee7b7">c ∉ {", \n}</tspan> y cierra con <tspan font-family="JetBrains Mono, monospace" fill="#6ee7b7">"</tspan> en <tspan font-family="JetBrains Mono, monospace" fill="#10b981" font-weight="700">q128</tspan>;</text>
+                  <text x="268" y="222" fill="#fca5a5" font-family="Plus Jakarta Sans, sans-serif" font-size="12">salto de línea o <tspan font-family="JetBrains Mono, monospace">EOF</tspan> sin cerrar dispara <tspan font-weight="700">Error E1</tspan>.</text>
+
+                  <!-- Rama 3: Números con Signo -->
+                  <rect
+                    x="248"
+                    y="268"
+                    width="494"
+                    height="106"
+                    rx="12"
+                    fill="#201a0d"
+                    stroke="#fbbf24"
+                    stroke-width="2"
+                  />
+                  <text x="268" y="296" fill="#fbbf24" font-family="Syne, sans-serif" font-size="15" font-weight="700">Rama 3 · Números con Signo (q129–q132 | E2, E3)</text>
+                  <text x="268" y="322" fill="#cbd5e1" font-family="Plus Jakarta Sans, sans-serif" font-size="12">Reconoce enteros y decimales negativos (<tspan font-family="JetBrains Mono, monospace" fill="#fde68a">-16.115</tspan>);</text>
+                  <text x="268" y="346" fill="#fca5a5" font-family="Plus Jakarta Sans, sans-serif" font-size="12"><tspan font-family="JetBrains Mono, monospace">-</tspan> sin dígito → <tspan font-weight="700">E2</tspan>, punto decimal mal formado → <tspan font-weight="700">E3</tspan>.</text>
+
+                  <!-- Rama 4: Operadores y :> -->
+                  <rect
+                    x="248"
+                    y="392"
+                    width="494"
+                    height="108"
+                    rx="12"
+                    fill="#221124"
+                    stroke="#f472b6"
+                    stroke-width="2"
+                  />
+                  <text x="268" y="420" fill="#f472b6" font-family="Syne, sans-serif" font-size="15" font-weight="700">Rama 4 · Operadores y :&gt; (q133–q140 | E4, E5)</text>
+                  <text x="268" y="446" fill="#cbd5e1" font-family="Plus Jakarta Sans, sans-serif" font-size="12">Reconoce <tspan font-family="JetBrains Mono, monospace" fill="#f9a8d4">=, [, ], ,, &lt;, &lt;=, &gt;, &gt;=, ==, !=</tspan> y <tspan font-family="JetBrains Mono, monospace" fill="#f9a8d4">:&gt;</tspan> (<tspan font-style="italic">Maximal Munch</tspan>);</text>
+                  <text x="268" y="470" fill="#fca5a5" font-family="Plus Jakarta Sans, sans-serif" font-size="12"><tspan font-family="JetBrains Mono, monospace">:</tspan> sin <tspan font-family="JetBrains Mono, monospace">&gt;</tspan> → <tspan font-weight="700">E4</tspan>, carácter ajeno a Σ → <tspan font-weight="700">E5</tspan>.</text>
+                </svg>
+              </div>
+              <div class="visual-caption">
+                <span>Modelo M_lex = (Q, Σ, δ, q0, F, E)</span>
+                <span style="color: var(--cyan)">140 estados · 5 errores</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================================================
                  SLIDE 6: FASE 2 — PDA 36 ESTADOS (Γ = {Z, R, P, A, S}) + APOYO GRÁFICO
                  =================================================== -->
-            <section class="slide" data-slide="6">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner">
-                    <div class="slide-topbar">
-                        <div class="slide-tag"><span class="num">05</span> Fase 2 · Análisis Sintáctico</div>
-                        <div class="speaker-pill">Expositora: Julissa Esther Mestas Huanca</div>
-                    </div>
-                    <h2 class="slide-title reveal d1">Autómata de Pila Determinista (<span class="accent">36 Estados</span>)</h2>
-                    <p class="slide-subtitle reveal d2">
-                        Verificado en <strong>JFLAP 7.1</strong> con alfabeto de pila <strong>Γ = { Z, R, P, A, S }</strong> para validar bloques balanceados en tiempo <strong>O(n)</strong>.
-                    </p>
+        <section class="slide" data-slide="6">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner">
+            <div class="slide-topbar">
+              <div class="slide-tag"><span class="num">05</span> Fase 2 · Análisis Sintáctico</div>
+              <div class="speaker-pill">Expositora: Julissa Esther Mestas Huanca</div>
+            </div>
+            <h2 class="slide-title reveal d1">
+              Autómata de Pila Determinista (<span class="accent">36 Estados</span>)
+            </h2>
+            <p class="slide-subtitle reveal d2">
+              Verificado en <strong>JFLAP 7.1</strong> con alfabeto de pila <strong>Γ = { Z, R, P, A, S }</strong> para
+              validar bloques balanceados en tiempo <strong>O(n)</strong>.
+            </p>
 
-                    <div class="grid-4 reveal d3" style="margin-bottom: 24px;">
-                        <div class="card-compact" style="border-top: 5px solid #38bdf8;">
-                            <div class="kpi-big" style="font-size: 48px;">Z / R</div>
-                            <h3 style="font-size:23px;">Fondo y Ruta</h3>
-                            <p style="font-size:18.5px;">Inicia con <strong>Z</strong>, apila <strong>R</strong> en <code style="font-family:var(--font-mono);">INICIO_RUTA</code> y desapila en <code style="font-family:var(--font-mono);">FIN_RUTA :&gt;</code>.</p>
-                        </div>
-                        <div class="card-compact" style="border-top: 5px solid #fbbf24;">
-                            <div class="kpi-big gold" style="font-size: 48px;">P</div>
-                            <h3 style="font-size:23px;">Bloque Parada</h3>
-                            <p style="font-size:18.5px;"><code style="font-family:var(--font-mono);">push P</code> en <code style="font-family:var(--font-mono);">INICIO_PARADA</code> y <code style="font-family:var(--font-mono);">pop P</code> en <code style="font-family:var(--font-mono);">FIN_PARADA</code> (bucle de N paradas).</p>
-                        </div>
-                        <div class="card-compact" style="border-top: 5px solid #a78bfa;">
-                            <div class="kpi-big" style="font-size: 48px; color:#a78bfa;">A</div>
-                            <h3 style="font-size:23px;">Arreglo [lat,lon]</h3>
-                            <p style="font-size:18.5px;"><code style="font-family:var(--font-mono);">push A</code> al abrir <code style="font-family:var(--font-mono);">[</code> en <code style="font-family:var(--font-mono);">qArr</code> y <code style="font-family:var(--font-mono);">pop A</code> al cerrar <code style="font-family:var(--font-mono);">]</code>.</p>
-                        </div>
-                        <div class="card-compact" style="border-top: 5px solid #10b981;">
-                            <div class="kpi-big green" style="font-size: 48px;">S</div>
-                            <h3 style="font-size:23px;">Condicional SI</h3>
-                            <p style="font-size:18.5px;"><code style="font-family:var(--font-mono);">push S</code> en <code style="font-family:var(--font-mono);">SI</code>, admite <code style="font-family:var(--font-mono);">SINO</code> y hace <code style="font-family:var(--font-mono);">pop S</code> en <code style="font-family:var(--font-mono);">FIN :&gt;</code>.</p>
-                        </div>
-                    </div>
+            <div class="grid-4 reveal d3" style="margin-bottom: 24px">
+              <div class="card-compact" style="border-top: 5px solid #38bdf8">
+                <div class="kpi-big" style="font-size: 48px">Z / R</div>
+                <h3 style="font-size: 23px">Fondo y Ruta</h3>
+                <p style="font-size: 18.5px">
+                  Inicia con <strong>Z</strong>, lo reemplaza por <strong>R</strong> (<code style="font-family: var(--font-mono)">pop Z, push R</code>) en
+                  <code style="font-family: var(--font-mono)">INICIO_RUTA</code> y hace <code style="font-family: var(--font-mono)">pop R</code> en
+                  <code style="font-family: var(--font-mono)">FIN_RUTA :&gt;</code>.
+                </p>
+              </div>
+              <div class="card-compact" style="border-top: 5px solid #fbbf24">
+                <div class="kpi-big gold" style="font-size: 48px">P</div>
+                <h3 style="font-size: 23px">Bloque Parada</h3>
+                <p style="font-size: 18.5px">
+                  <code style="font-family: var(--font-mono)">push P</code> en
+                  <code style="font-family: var(--font-mono)">INICIO_PARADA</code> y
+                  <code style="font-family: var(--font-mono)">pop P</code> en
+                  <code style="font-family: var(--font-mono)">FIN_PARADA</code> (bucle de N paradas).
+                </p>
+              </div>
+              <div class="card-compact" style="border-top: 5px solid #a78bfa">
+                <div class="kpi-big" style="font-size: 48px; color: #a78bfa">A</div>
+                <h3 style="font-size: 23px">Arreglo [lat,lon]</h3>
+                <p style="font-size: 18.5px">
+                  <code style="font-family: var(--font-mono)">push A</code> al abrir
+                  <code style="font-family: var(--font-mono)">[</code> en
+                  <code style="font-family: var(--font-mono)">qArr</code> y
+                  <code style="font-family: var(--font-mono)">pop A</code> al cerrar
+                  <code style="font-family: var(--font-mono)">]</code>.
+                </p>
+              </div>
+              <div class="card-compact" style="border-top: 5px solid #10b981">
+                <div class="kpi-big green" style="font-size: 48px">S</div>
+                <h3 style="font-size: 23px">Condicional SI</h3>
+                <p style="font-size: 18.5px">
+                  <code style="font-family: var(--font-mono)">push S</code> en
+                  <code style="font-family: var(--font-mono)">SI</code>, admite
+                  <code style="font-family: var(--font-mono)">SINO</code> y hace
+                  <code style="font-family: var(--font-mono)">pop S</code> en
+                  <code style="font-family: var(--font-mono)">FIN :&gt;</code>.
+                </p>
+              </div>
+            </div>
 
-                    <!-- Bloque visual compacto del flujo de pila PDA -->
-                    <div class="card-compact card-highlight reveal d4" style="flex:1; display:flex; flex-direction:column; justify-content:space-between; padding:20px 28px;">
-                        <svg viewBox="0 0 1660 155" width="100%" height="145">
-                            <defs>
-                                <marker id="arr6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
-                                </marker>
-                            </defs>
-                            <!-- Conexiones horizontales -->
-                            <line x1="170" y1="78" x2="310" y2="78" stroke="#38bdf8" stroke-width="3" marker-end="url(#arr6)"/>
-                            <line x1="490" y1="78" x2="630" y2="78" stroke="#fbbf24" stroke-width="3" marker-end="url(#arr6)"/>
-                            <line x1="810" y1="78" x2="950" y2="78" stroke="#a78bfa" stroke-width="3" marker-end="url(#arr6)"/>
-                            <line x1="1130" y1="78" x2="1270" y2="78" stroke="#10b981" stroke-width="3" marker-end="url(#arr6)"/>
-                            <line x1="1450" y1="78" x2="1540" y2="78" stroke="#34d399" stroke-width="3" marker-end="url(#arr6)"/>
+            <!-- Bloque visual compacto del flujo de pila PDA -->
+            <div
+              class="card-compact card-highlight reveal d4"
+              style="flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 28px"
+            >
+              <svg viewBox="0 0 1660 155" preserveAspectRatio="xMidYMid meet" width="100%" height="145">
+                <defs>
+                  <marker
+                    id="arr6"
+                    viewBox="0 0 10 10"
+                    refX="8"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto"
+                  >
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+                  </marker>
+                </defs>
+                <!-- Conexiones horizontales -->
+                <line x1="170" y1="78" x2="310" y2="78" stroke="#38bdf8" stroke-width="3" marker-end="url(#arr6)" />
+                <line x1="490" y1="78" x2="630" y2="78" stroke="#fbbf24" stroke-width="3" marker-end="url(#arr6)" />
+                <line x1="810" y1="78" x2="950" y2="78" stroke="#a78bfa" stroke-width="3" marker-end="url(#arr6)" />
+                <line x1="1130" y1="78" x2="1270" y2="78" stroke="#10b981" stroke-width="3" marker-end="url(#arr6)" />
+                <line x1="1450" y1="78" x2="1540" y2="78" stroke="#34d399" stroke-width="3" marker-end="url(#arr6)" />
 
-                            <!-- Bloques visuales -->
-                            <rect x="10" y="34" width="160" height="88" rx="14" fill="#0d223a" stroke="#38bdf8" stroke-width="2.5"/>
-                            <text x="90" y="68" fill="#38bdf8" font-family="JetBrains Mono" font-size="18" font-weight="800" text-anchor="middle">q0 → q3</text>
-                            <text x="90" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">push R · [Z,R]</text>
+                <!-- Bloques visuales -->
+                <rect
+                  x="10"
+                  y="34"
+                  width="160"
+                  height="88"
+                  rx="14"
+                  fill="#0d223a"
+                  stroke="#38bdf8"
+                  stroke-width="2.5"
+                />
+                <text
+                  x="90"
+                  y="68"
+                  fill="#38bdf8"
+                  font-family="JetBrains Mono"
+                  font-size="18"
+                  font-weight="800"
+                  text-anchor="middle"
+                >
+                  q0 → q3
+                </text>
+                <text x="90" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">
+                  Z→R · [R]
+                </text>
 
-                            <rect x="315" y="34" width="175" height="88" rx="14" fill="#1f1b0d" stroke="#fbbf24" stroke-width="2.5"/>
-                            <text x="402" y="68" fill="#fbbf24" font-family="JetBrains Mono" font-size="18" font-weight="800" text-anchor="middle">q6 ⇄ q9</text>
-                            <text x="402" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">±P · Paradas</text>
+                <rect
+                  x="315"
+                  y="34"
+                  width="175"
+                  height="88"
+                  rx="14"
+                  fill="#1f1b0d"
+                  stroke="#fbbf24"
+                  stroke-width="2.5"
+                />
+                <text
+                  x="402"
+                  y="68"
+                  fill="#fbbf24"
+                  font-family="JetBrains Mono"
+                  font-size="18"
+                  font-weight="800"
+                  text-anchor="middle"
+                >
+                  q6 ⇄ q9
+                </text>
+                <text x="402" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">
+                  ±P · Paradas
+                </text>
 
-                            <rect x="635" y="34" width="175" height="88" rx="14" fill="#1b1430" stroke="#a78bfa" stroke-width="2.5"/>
-                            <text x="722" y="68" fill="#a78bfa" font-family="JetBrains Mono" font-size="18" font-weight="800" text-anchor="middle">q11 ⇄ qArr</text>
-                            <text x="722" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">±A · [lat,lon]</text>
+                <rect
+                  x="635"
+                  y="34"
+                  width="175"
+                  height="88"
+                  rx="14"
+                  fill="#1b1430"
+                  stroke="#a78bfa"
+                  stroke-width="2.5"
+                />
+                <text
+                  x="722"
+                  y="68"
+                  fill="#a78bfa"
+                  font-family="JetBrains Mono"
+                  font-size="18"
+                  font-weight="800"
+                  text-anchor="middle"
+                >
+                  q11 ⇄ qArr
+                </text>
+                <text x="722" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">
+                  ±A · [lat,lon]
+                </text>
 
-                            <rect x="955" y="34" width="175" height="88" rx="14" fill="#0b261e" stroke="#10b981" stroke-width="2.5"/>
-                            <text x="1042" y="68" fill="#34d399" font-family="JetBrains Mono" font-size="18" font-weight="800" text-anchor="middle">q16 ⇄ q24</text>
-                            <text x="1042" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">±S · SI/SINO</text>
+                <rect
+                  x="955"
+                  y="34"
+                  width="175"
+                  height="88"
+                  rx="14"
+                  fill="#0b261e"
+                  stroke="#10b981"
+                  stroke-width="2.5"
+                />
+                <text
+                  x="1042"
+                  y="68"
+                  fill="#34d399"
+                  font-family="JetBrains Mono"
+                  font-size="18"
+                  font-weight="800"
+                  text-anchor="middle"
+                >
+                  q16 ⇄ q24
+                </text>
+                <text x="1042" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">
+                  ±S · SI/SINO
+                </text>
 
-                            <rect x="1275" y="34" width="175" height="88" rx="14" fill="#0d223a" stroke="#38bdf8" stroke-width="2.5"/>
-                            <text x="1362" y="68" fill="#38bdf8" font-family="JetBrains Mono" font-size="18" font-weight="800" text-anchor="middle">q31 → qF</text>
-                            <text x="1362" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">pop R, Z → ∅</text>
+                <rect
+                  x="1275"
+                  y="34"
+                  width="175"
+                  height="88"
+                  rx="14"
+                  fill="#0d223a"
+                  stroke="#38bdf8"
+                  stroke-width="2.5"
+                />
+                <text
+                  x="1362"
+                  y="68"
+                  fill="#38bdf8"
+                  font-family="JetBrains Mono"
+                  font-size="18"
+                  font-weight="800"
+                  text-anchor="middle"
+                >
+                  q31 → qF
+                </text>
+                <text x="1362" y="96" fill="#e2e8f0" font-family="JetBrains Mono" font-size="14" text-anchor="middle">
+                  pop R → ∅
+                </text>
 
-                            <circle cx="1590" cy="78" r="40" fill="#064e3b" stroke="#34d399" stroke-width="3.5"/>
-                            <circle cx="1590" cy="78" r="32" fill="none" stroke="#34d399" stroke-width="2"/>
-                            <text x="1590" y="84" fill="#ffffff" font-family="JetBrains Mono" font-size="20" font-weight="800" text-anchor="middle">qF</text>
-                        </svg>
-                        <p style="font-size: 19px; color: #cbd5e1; text-align:center;">
-                            Implementación <strong>Table-Driven</strong> en PHP y Python (<code style="font-family:var(--font-mono);color:var(--cyan);">registrarReglaTransicion()</code> y <code style="font-family:var(--font-mono);color:var(--cyan);">registrarGrupoTransiciones()</code>) con reporte exacto de línea, columna y tokens esperados.
-                        </p>
-                    </div>
-                </div>
-            </section>
+                <circle cx="1590" cy="78" r="40" fill="#064e3b" stroke="#34d399" stroke-width="3.5" />
+                <circle cx="1590" cy="78" r="32" fill="none" stroke="#34d399" stroke-width="2" />
+                <text
+                  x="1590"
+                  y="84"
+                  fill="#ffffff"
+                  font-family="JetBrains Mono"
+                  font-size="20"
+                  font-weight="800"
+                  text-anchor="middle"
+                >
+                  qF
+                </text>
+              </svg>
+              <p style="font-size: 19px; color: #cbd5e1; text-align: center">
+                Implementación <strong>Table-Driven</strong> en PHP y Python (<code
+                  style="font-family: var(--font-mono); color: var(--cyan)"
+                  >registrarReglaTransicion()</code
+                >
+                y <code style="font-family: var(--font-mono); color: var(--cyan)">registrarGrupoTransiciones()</code>)
+                con reporte exacto de línea, columna y tokens esperados.
+              </p>
+            </div>
+          </div>
+        </section>
 
-            <!-- ===================================================
+        <!-- ===================================================
                  SLIDE 7: SIMULACIÓN INTERACTIVA EN VIVO DEL PDA (Γ = {Z, R, P, A, S})
                  =================================================== -->
-            <section class="slide" data-slide="7">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner" style="padding-top: 46px; padding-bottom: 72px;">
-                    <div class="slide-topbar" style="margin-bottom: 20px;">
-                        <div class="slide-tag"><span class="num">06</span> Simulación Interactiva en Vivo · PDA</div>
-                        <div class="speaker-pill">Expositora: Julissa Esther Mestas Huanca</div>
-                    </div>
+        <section class="slide" data-slide="7">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner" style="padding-top: 46px; padding-bottom: 80px">
+            <div class="slide-topbar" style="margin-bottom: 20px">
+              <div class="slide-tag"><span class="num">06</span> Simulación Interactiva en Vivo · PDA</div>
+              <div class="speaker-pill">Expositora: Julissa Esther Mestas Huanca</div>
+            </div>
 
-                    <div class="sim-layout">
-                        <!-- IZQUIERDA: CONTROLES + GRAFO SVG DEL PDA + CINTA DE TOKENS -->
-                        <div class="sim-left">
-                            <div class="sim-toolbar">
-                                <div class="sim-btn-group">
-                                    <button class="sim-btn active-mode" id="btnModeValid" onclick="pdaSim.setMode('valid')">✅ Caso Válido (Sillustani)</button>
-                                    <button class="sim-btn err-mode" id="btnModeError" onclick="pdaSim.setMode('error')">❌ Caso Error (Falta :&gt;)</button>
-                                </div>
-                                <div class="sim-btn-group">
-                                    <button class="sim-btn primary" id="btnPlay" onclick="pdaSim.togglePlay()">▶ Reproducir</button>
-                                    <button class="sim-btn" onclick="pdaSim.step()">⏭ Paso</button>
-                                    <button class="sim-btn" onclick="pdaSim.reset()">↺ Reiniciar</button>
-                                </div>
-                            </div>
-
-                            <div class="sim-svg-box">
-                                <svg id="pdaSvg" viewBox="0 0 1080 510" width="100%" height="100%">
-                                    <defs>
-                                        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                                            <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569"/>
-                                        </marker>
-                                        <marker id="arrowActive" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                                            <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
-                                        </marker>
-                                    </defs>
-
-                                    <path id="e-q0-q3" class="pda-edge" d="M 96 105 L 222 105" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="159" y="92" style="fill:#38bdf8;">INICIO_RUTA (+R)</text>
-
-                                    <path id="e-q3-q6" class="pda-edge" d="M 282 105 L 408 105" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="345" y="92">ORIGEN .. :&gt;</text>
-
-                                    <path id="e-q6-q9" class="pda-edge" d="M 468 95 L 612 65" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="540" y="64" style="fill:#fbbf24;">INICIO_PARADA (+P)</text>
-
-                                    <path id="e-q9-qArr" class="pda-edge" d="M 672 60 L 822 60" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="747" y="46" style="fill:#a78bfa;">UBICACION = [ (+A)</text>
-
-                                    <path id="e-qArr-q9" class="pda-edge" d="M 822 80 Q 747 130 672 80" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="747" y="128" style="fill:#a78bfa;">lat, lon ] :&gt; (-A)</text>
-
-                                    <path id="e-q9-q6" class="pda-edge" d="M 615 86 Q 545 148 468 118" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="545" y="150" style="fill:#fbbf24;">FIN_PARADA :&gt; (-P)</text>
-
-                                    <path id="e-q6-q16" class="pda-edge" d="M 438 138 L 438 258" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="506" y="205">DESTINO .. :&gt;</text>
-
-                                    <path id="e-q16-q19" class="pda-edge" d="M 408 290 L 246 290" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="328" y="274">COSTO = 90</text>
-
-                                    <path id="e-q19-q16" class="pda-edge" d="M 246 312 Q 328 360 408 312" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="328" y="358">:&gt; (Terminador)</text>
-
-                                    <path id="e-q16-q24" class="pda-edge" d="M 470 290 L 675 290" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="572" y="274" style="fill:#34d399;">SI COSTO &lt;= 100 (+S)</text>
-
-                                    <path id="e-q24-q16" class="pda-edge" d="M 675 314 Q 572 372 470 314" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="572" y="368" style="fill:#34d399;">RECOMENDAR .. FIN :&gt; (-S)</text>
-
-                                    <path id="e-q16-qF" class="pda-edge" d="M 438 324 L 438 424" marker-end="url(#arrow)"/>
-                                    <text class="pda-edge-txt" x="556" y="395" style="fill:#38bdf8;">MOSTRAR_RUTA · FIN_RUTA :&gt; (-R,-Z)</text>
-
-                                    <!-- Nodos del PDA -->
-                                    <g transform="translate(65,105)">
-                                        <circle id="n-q0" class="pda-node active-node" r="30"/>
-                                        <text class="pda-label">q0</text>
-                                    </g>
-                                    <g transform="translate(252,105)">
-                                        <circle id="n-q3" class="pda-node" r="30"/>
-                                        <text class="pda-label">q3</text>
-                                    </g>
-                                    <g transform="translate(438,105)">
-                                        <circle id="n-q6" class="pda-node" r="30"/>
-                                        <text class="pda-label">q6</text>
-                                    </g>
-                                    <g transform="translate(642,65)">
-                                        <circle id="n-q9" class="pda-node" r="30"/>
-                                        <text class="pda-label">q9</text>
-                                    </g>
-                                    <g transform="translate(856,65)">
-                                        <circle id="n-qArr" class="pda-node" r="33"/>
-                                        <text class="pda-label">qArr</text>
-                                    </g>
-                                    <g transform="translate(438,292)">
-                                        <circle id="n-q16" class="pda-node" r="32"/>
-                                        <text class="pda-label">q16</text>
-                                    </g>
-                                    <g transform="translate(215,292)">
-                                        <circle id="n-q19" class="pda-node" r="30"/>
-                                        <text class="pda-label">q19</text>
-                                    </g>
-                                    <g transform="translate(708,292)">
-                                        <circle id="n-q24" class="pda-node" r="30"/>
-                                        <text class="pda-label">q24</text>
-                                    </g>
-                                    <g transform="translate(438,458)">
-                                        <circle id="n-qF-outer" class="pda-node" r="36"/>
-                                        <circle id="n-qF" class="pda-node" r="28"/>
-                                        <text class="pda-label">qF</text>
-                                    </g>
-                                </svg>
-                            </div>
-
-                            <div class="sim-tape-box" id="simTape"></div>
-                        </div>
-
-                        <!-- DERECHA: PILA VISUAL ANIMADA + LOG DE TRANSICIÓN -->
-                        <div class="sim-right">
-                            <div class="stack-panel">
-                                <div class="stack-title">Pila del Autómata (Γ = {Z, R, P, A, S})</div>
-                                <div class="stack-visual" id="simStack"></div>
-                            </div>
-                            <div class="sim-log-box" id="simLog"></div>
-                        </div>
-                    </div>
+            <div class="sim-layout">
+              <!-- IZQUIERDA: CONTROLES + GRAFO SVG DEL PDA + CINTA DE TOKENS -->
+              <div class="sim-left">
+                <div class="sim-toolbar">
+                  <div class="sim-btn-group">
+                    <button class="sim-btn active-mode" id="btnModeValid" onclick="pdaSim.setMode('valid')">
+                      ✅ Caso Válido (Sillustani)
+                    </button>
+                    <button class="sim-btn err-mode" id="btnModeError" onclick="pdaSim.setMode('error')">
+                      ❌ Caso Error (Falta :&gt;)
+                    </button>
+                  </div>
+                  <div class="sim-btn-group">
+                    <button class="sim-btn primary" id="btnPlay" onclick="pdaSim.togglePlay()">▶ Reproducir</button>
+                    <button class="sim-btn" onclick="pdaSim.step()">⏭ Paso</button>
+                    <button class="sim-btn" onclick="pdaSim.reset()">↺ Reiniciar</button>
+                  </div>
                 </div>
-            </section>
 
-            <!-- ===================================================
+                <div class="sim-svg-box">
+                  <svg id="pdaSvg" viewBox="0 0 1080 510" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
+                    <defs>
+                      <marker
+                        id="arrow"
+                        viewBox="0 0 10 10"
+                        refX="8"
+                        refY="5"
+                        markerWidth="6"
+                        markerHeight="6"
+                        orient="auto-start-reverse"
+                      >
+                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
+                      </marker>
+                      <marker
+                        id="arrowActive"
+                        viewBox="0 0 10 10"
+                        refX="8"
+                        refY="5"
+                        markerWidth="6"
+                        markerHeight="6"
+                        orient="auto-start-reverse"
+                      >
+                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+                      </marker>
+                    </defs>
+
+                    <path id="e-q0-q3" class="pda-edge" d="M 96 105 L 222 105" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="159" y="92" style="fill: #38bdf8">INICIO_RUTA (Z→R)</text>
+
+                    <path id="e-q3-q6" class="pda-edge" d="M 282 105 L 408 105" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="345" y="92">ORIGEN .. :&gt;</text>
+
+                    <path id="e-q6-q9" class="pda-edge" d="M 468 95 L 612 65" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="540" y="64" style="fill: #fbbf24">INICIO_PARADA (+P)</text>
+
+                    <path id="e-q9-qArr" class="pda-edge" d="M 672 60 L 822 60" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="747" y="46" style="fill: #a78bfa">UBICACION = [ (+A)</text>
+
+                    <path id="e-qArr-q9" class="pda-edge" d="M 822 80 Q 747 130 672 80" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="747" y="128" style="fill: #a78bfa">lat, lon ] :&gt; (-A)</text>
+
+                    <path id="e-q9-q6" class="pda-edge" d="M 615 86 Q 545 148 468 118" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="545" y="150" style="fill: #fbbf24">FIN_PARADA :&gt; (-P)</text>
+
+                    <path id="e-q6-q16" class="pda-edge" d="M 438 138 L 438 258" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="506" y="205">DESTINO .. :&gt;</text>
+
+                    <path id="e-q16-q19" class="pda-edge" d="M 408 290 L 246 290" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="328" y="274">COSTO = 90</text>
+
+                    <path id="e-q19-q16" class="pda-edge" d="M 246 312 Q 328 360 408 312" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="328" y="358">:&gt; (Terminador)</text>
+
+                    <path id="e-q16-q24" class="pda-edge" d="M 470 290 L 675 290" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="572" y="274" style="fill: #34d399">SI COSTO &lt;= 100 (+S)</text>
+
+                    <path id="e-q24-q16" class="pda-edge" d="M 675 314 Q 572 372 470 314" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="572" y="368" style="fill: #34d399">RECOMENDAR .. FIN :&gt; (-S)</text>
+
+                    <path id="e-q16-qF" class="pda-edge" d="M 438 324 L 438 424" marker-end="url(#arrow)" />
+                    <text class="pda-edge-txt" x="454" y="395" style="fill: #38bdf8; text-anchor: start">
+                      MOSTRAR_RUTA · FIN_RUTA :&gt; (-R)
+                    </text>
+
+                    <!-- Nodos del PDA -->
+                    <g transform="translate(65,105)">
+                      <circle id="n-q0" class="pda-node active-node" r="30" />
+                      <text class="pda-label">q0</text>
+                    </g>
+                    <g transform="translate(252,105)">
+                      <circle id="n-q3" class="pda-node" r="30" />
+                      <text class="pda-label">q3</text>
+                    </g>
+                    <g transform="translate(438,105)">
+                      <circle id="n-q6" class="pda-node" r="30" />
+                      <text class="pda-label">q6</text>
+                    </g>
+                    <g transform="translate(642,65)">
+                      <circle id="n-q9" class="pda-node" r="30" />
+                      <text class="pda-label">q9</text>
+                    </g>
+                    <g transform="translate(856,65)">
+                      <circle id="n-qArr" class="pda-node" r="33" />
+                      <text class="pda-label">qArr</text>
+                    </g>
+                    <g transform="translate(438,292)">
+                      <circle id="n-q16" class="pda-node" r="32" />
+                      <text class="pda-label">q16</text>
+                    </g>
+                    <g transform="translate(215,292)">
+                      <circle id="n-q19" class="pda-node" r="30" />
+                      <text class="pda-label">q19</text>
+                    </g>
+                    <g transform="translate(708,292)">
+                      <circle id="n-q24" class="pda-node" r="30" />
+                      <text class="pda-label">q24</text>
+                    </g>
+                    <g transform="translate(438,458)">
+                      <circle id="n-qF-outer" class="pda-node" r="36" />
+                      <circle id="n-qF" class="pda-node" r="28" />
+                      <text class="pda-label">qF</text>
+                    </g>
+                  </svg>
+                </div>
+
+                <div class="sim-tape-box" id="simTape"></div>
+              </div>
+
+              <!-- DERECHA: PILA VISUAL ANIMADA + LOG DE TRANSICIÓN -->
+              <div class="sim-right">
+                <div class="stack-panel">
+                  <div class="stack-title">Pila del Autómata (Γ = {Z, R, P, A, S})</div>
+                  <div class="stack-visual" id="simStack"></div>
+                </div>
+                <div class="sim-log-box" id="simLog"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================================================
                  SLIDE 8: FASE 3 — ANALIZADOR SEMÁNTICO (SINTETIZADO)
                  =================================================== -->
-            <section class="slide" data-slide="8">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner">
-                    <div class="slide-topbar">
-                        <div class="slide-tag"><span class="num">07</span> Fase 3 · Análisis Semántico</div>
-                        <div class="speaker-pill">Expositor: Anthony Junior Quispe Cruz</div>
-                    </div>
-                    <h2 class="slide-title reveal d1">Sintaxis correcta ≠ <span class="accent-gold">Sentido real</span></h2>
-                    <p class="slide-subtitle reveal d2">
-                        Tabla de Símbolos por ámbito (<strong>Global</strong> vs. <strong>Parada</strong>) con validación estricta del dominio Puno.
-                    </p>
-                    <div class="grid-code-split reveal d3">
-                        <div class="code-window" style="border-color: rgba(248,113,113,0.45);">
-                            <div class="code-window-bar">
-                                <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-                                <span>caso_error_semantico.tl</span>
-                            </div>
-                            <div class="code-body"><span class="kw">INICIO_RUTA</span> <span class="str">"Prueba Semantica"</span> <span class="op">:&gt;</span>
+        <section class="slide" data-slide="8">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner">
+            <div class="slide-topbar">
+              <div class="slide-tag"><span class="num">07</span> Fase 3 · Análisis Semántico</div>
+              <div class="speaker-pill">Expositor: Anthony Junior Quispe Cruz</div>
+            </div>
+            <h2 class="slide-title reveal d1">Sintaxis correcta ≠ <span class="accent-gold">Sentido real</span></h2>
+            <p class="slide-subtitle reveal d2">
+              Tabla de Símbolos por ámbito (<strong>Global</strong> vs. <strong>Parada</strong>) con validación estricta
+              del dominio Puno.
+            </p>
+            <div class="grid-code-split reveal d3">
+              <div class="code-window" style="border-color: rgba(248, 113, 113, 0.45)">
+                <div class="code-window-bar">
+                  <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                  <span>caso_error_semantico.tl</span>
+                </div>
+                <div class="code-body" style="font-size: 18px; line-height: 1.52"><span class="kw">INICIO_RUTA</span> <span class="str">"Prueba Semantica"</span> <span class="op">:&gt;</span>
   <span class="kw">ORIGEN</span> <span class="str">"Puno"</span> <span class="op">:&gt;</span>
   <span class="kw">INICIO_PARADA</span> <span class="str">"Sillustani"</span> <span class="op">:&gt;</span>
     <span class="kw">TIPO</span> <span class="op">=</span> <span class="str">"ARQUEOLOGICO"</span> <span class="op">:&gt;</span>
-    <span class="kw">PROBABILIDAD_LLUVIA</span> <span class="op">=</span> <span class="num-tok" style="color:#f87171;">150</span> <span class="op">:&gt;</span>  <span class="cmt">// Fuera [0,100]</span>
-    <span class="kw">COSTO</span> <span class="op">=</span> <span class="num-tok" style="color:#f87171;">-20</span> <span class="op">:&gt;</span>                <span class="cmt">// Negativo</span>
+    <span class="kw">PROBABILIDAD_LLUVIA</span> <span class="op">=</span> <span class="num-tok" style="color: #f87171">150</span> <span class="op">:&gt;</span> <span class="cmt">// Fuera [0,100]</span>
+    <span class="kw">COSTO</span> <span class="op">=</span> <span class="num-tok" style="color: #f87171">-20</span> <span class="op">:&gt;</span>               <span class="cmt">// Negativo</span>
   <span class="kw">FIN_PARADA</span> <span class="op">:&gt;</span>
   <span class="kw">DESTINO</span> <span class="str">"Lampa"</span> <span class="op">:&gt;</span>
 <span class="kw">FIN_RUTA</span> <span class="op">:&gt;</span></div>
-                        </div>
-                        <div style="display:flex; flex-direction:column; gap:20px; justify-content:center;">
-                            <div class="card" style="border-left: 6px solid var(--emerald); padding: 22px 28px;">
-                                <h3 style="color: var(--emerald); font-size:24px;">✓ AFD Léxico &amp; ✓ PDA Sintáctico (qF)</h3>
-                                <p style="font-size:20px;">Aceptan la estructura porque <code style="font-family:var(--font-mono);">ATRIBUTO = NUM :&gt;</code> cumple la gramática.</p>
-                            </div>
-                            <div class="card" style="border-left: 6px solid var(--coral); padding: 22px 28px;">
-                                <h3 style="color: var(--coral); font-size:24px;">✗ Analizador Semántico (RECHAZADO)</h3>
-                                <ul>
-                                    <li style="font-size:20px;">Rangos válidos: <code style="font-family:var(--font-mono);">PROBABILIDAD_LLUVIA ∈ [0, 100]</code> y <code style="font-family:var(--font-mono);">COSTO ≥ 0</code>.</li>
-                                    <li style="font-size:20px;">Unicidad: bloquea paradas o atributos repetidos por ámbito.</li>
-                                    <li style="font-size:20px;">Catálogo geográfico: valida 27 destinos oficiales de Puno.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 20px; justify-content: center">
+                <div class="card" style="border-left: 6px solid var(--emerald); padding: 22px 28px">
+                  <h3 style="color: var(--emerald); font-size: 24px">✓ AFD Léxico &amp; ✓ PDA Sintáctico (qF)</h3>
+                  <p style="font-size: 20px">
+                    Aceptan la estructura porque
+                    <code style="font-family: var(--font-mono)">ATRIBUTO = NUM :&gt;</code> cumple la gramática.
+                  </p>
                 </div>
-            </section>
+                <div class="card" style="border-left: 6px solid var(--coral); padding: 22px 28px">
+                  <h3 style="color: var(--coral); font-size: 24px">✗ Analizador Semántico (RECHAZADO)</h3>
+                  <ul>
+                    <li style="font-size: 20px">
+                      Rangos válidos:
+                      <code style="font-family: var(--font-mono)">PROBABILIDAD_LLUVIA ∈ [0, 100]</code> y
+                      <code style="font-family: var(--font-mono)">COSTO ≥ 0</code>.
+                    </li>
+                    <li style="font-size: 20px">Unicidad: bloquea paradas o atributos repetidos por ámbito.</li>
+                    <li style="font-size: 20px">Catálogo geográfico: valida 27 destinos oficiales de Puno.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-            <!-- ===================================================
+        <!-- ===================================================
                  SLIDE 9: PLATAFORMA WEB + VISOR 3D (GRID ASIMÉTRICA 1.05fr 0.95fr)
                  =================================================== -->
-            <section class="slide" data-slide="9">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner">
-                    <div class="slide-topbar">
-                        <div class="slide-tag"><span class="num">08</span> Plataforma Web e Intérprete Cartográfico</div>
-                        <div class="speaker-pill">Expositor: Anthony Junior Quispe Cruz</div>
-                    </div>
-                    <h2 class="slide-title reveal d1">Del Código al <span class="accent">Mapa 2D y 3D Real</span></h2>
-                    <p class="slide-subtitle reveal d2">
-                        IDE Web en Python (Streamlit) dividida 50/50: compilación en vivo y trazado real sobre Puno.
-                    </p>
+        <section class="slide" data-slide="9">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner">
+            <div class="slide-topbar">
+              <div class="slide-tag"><span class="num">08</span> Plataforma Web e Intérprete Cartográfico</div>
+              <div class="speaker-pill">Expositor: Anthony Junior Quispe Cruz</div>
+            </div>
+            <h2 class="slide-title reveal d1">Del Código al <span class="accent">Mapa 2D y 3D Real</span></h2>
+            <p class="slide-subtitle reveal d2">
+              IDE Web en Python (Streamlit) dividida 50/50: compilación en vivo y trazado real sobre Puno.
+            </p>
 
-                    <div class="grid-asym reveal d3">
-                        <!-- Columna izquierda: 3 tarjetas técnicas compactas -->
-                        <div style="display:flex; flex-direction:column; gap:18px; justify-content:center;">
-                            <div class="card-compact card-highlight">
-                                <h3 style="color: var(--cyan); font-size:23px;">🛣️ Híbrido OSRM + Valhalla</h3>
-                                <p style="font-size:19px;"><strong>OSRM</strong> traza carreteras para <code style="font-family:var(--font-mono);">BUS/AUTO</code>; <strong>Valhalla</strong> enruta <code style="font-family:var(--font-mono);">CAMINATA/BICICLETA</code> con respaldo mutuo.</p>
-                            </div>
-                            <div class="card-compact" style="border-color: rgba(251,191,36,0.4);">
-                                <h3 style="color: var(--amber); font-size:23px;">🏔️ Visor 3D Real (MapLibre GL)</h3>
-                                <p style="font-size:19px;"><code style="font-family:var(--font-mono);">VISTA = "3D" :&gt;</code> activa relieve DEM del Altiplano (62°), rotación 360° y <strong>Vuelo 3D</strong>.</p>
-                            </div>
-                            <div class="card-compact">
-                                <h3 style="color: var(--emerald); font-size:23px;">📦 Exportación y Demo en Vivo</h3>
-                                <p style="font-size:19px;">Descarga <code style="font-family:var(--font-mono);">.tl</code>, <code style="font-family:var(--font-mono);">.json</code> y carretera <code style="font-family:var(--font-mono);">.geojson</code>; ejecuta en <code style="font-family:var(--font-mono);color:var(--cyan);">localhost:8501</code>.</p>
-                            </div>
+            <div class="grid-asym reveal d3">
+              <!-- Columna izquierda: 3 tarjetas técnicas compactas -->
+              <div style="display: flex; flex-direction: column; gap: 18px; justify-content: center">
+                <div class="card-compact card-highlight">
+                  <h3 style="color: var(--cyan); font-size: 23px">🛣️ Híbrido OSRM + Valhalla</h3>
+                  <p style="font-size: 19px">
+                    <strong>OSRM</strong> traza carreteras para
+                    <code style="font-family: var(--font-mono)">BUS/AUTO</code>; <strong>Valhalla</strong> enruta
+                    <code style="font-family: var(--font-mono)">CAMINATA/BICICLETA</code> con respaldo mutuo.
+                  </p>
+                </div>
+                <div class="card-compact" style="border-color: rgba(251, 191, 36, 0.4)">
+                  <h3 style="color: var(--amber); font-size: 23px">🏔️ Visor 3D Real (MapLibre GL)</h3>
+                  <p style="font-size: 19px">
+                    <code style="font-family: var(--font-mono)">VISTA = "3D" :&gt;</code> activa relieve DEM del
+                    Altiplano (62°), rotación 360° y <strong>Vuelo 3D</strong>.
+                  </p>
+                </div>
+                <div class="card-compact">
+                  <h3 style="color: var(--emerald); font-size: 23px">📦 Exportación y Demo en Vivo</h3>
+                  <p style="font-size: 19px">
+                    Descarga <code style="font-family: var(--font-mono)">.tl</code>,
+                    <code style="font-family: var(--font-mono)">.json</code> y carretera
+                    <code style="font-family: var(--font-mono)">.geojson</code>; ejecuta en
+                    <code style="font-family: var(--font-mono); color: var(--cyan)">localhost:8501</code>.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Columna derecha: Mockup vectorial 50/50 IDE + Mapa 3D -->
+              <div class="visual-frame">
+                <div class="code-window-bar">
+                  <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                  <span>http://localhost:8501 · TOUR-LANG IDE 3D</span>
+                </div>
+                <div class="visual-body" style="padding: 14px">
+                  <div id="webFallbackMockup" class="ide-fallback" style="display: flex">
+                    <div class="ide-pane-code">
+                      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px">
+                        <div style="display: flex; gap: 6px; font-family: var(--font-mono); font-size: 11px">
+                          <span
+                            style="
+                              background: rgba(16, 185, 129, 0.2);
+                              color: #34d399;
+                              padding: 3px 7px;
+                              border-radius: 5px;
+                            "
+                            >✓ Léxico</span
+                          >
+                          <span
+                            style="
+                              background: rgba(16, 185, 129, 0.2);
+                              color: #34d399;
+                              padding: 3px 7px;
+                              border-radius: 5px;
+                            "
+                            >✓ Sintaxis</span
+                          >
+                          <span
+                            style="
+                              background: rgba(16, 185, 129, 0.2);
+                              color: #34d399;
+                              padding: 3px 7px;
+                              border-radius: 5px;
+                            "
+                            >✓ Semántica</span
+                          >
                         </div>
-
-                        <!-- Columna derecha: Captura real docs/captura_streamlit_3d.png con fallback estilizado IDE 50/50 -->
-                        <div class="visual-frame">
-                            <div class="code-window-bar">
-                                <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-                                <span>http://localhost:8501 · TOUR-LANG IDE 3D</span>
-                            </div>
-                            <div class="visual-body" style="padding:14px;">
-                                <img id="imgDemoWeb" src="docs/captura_streamlit_3d.png" alt="Captura Plataforma Web TOUR-LANG 3D"
-                                     style="width:100%; height:100%; max-height:470px; object-fit:contain; border-radius:10px;"
-                                     onerror="this.style.display='none'; document.getElementById('webFallbackMockup').style.display='flex';">
-
-                                <!-- Fallback estilizado tipo navegador 50/50 (se muestra si aún no existe la captura PNG) -->
-                                <div id="webFallbackMockup" class="ide-fallback">
-                                    <div class="ide-pane-code">
-                                        <div style="display:flex; gap:6px; font-family:var(--font-mono); font-size:11px;">
-                                            <span style="background:rgba(16,185,129,0.2);color:#34d399;padding:3px 7px;border-radius:5px;">✓ Léxico</span>
-                                            <span style="background:rgba(16,185,129,0.2);color:#34d399;padding:3px 7px;border-radius:5px;">✓ Sintaxis</span>
-                                            <span style="background:rgba(16,185,129,0.2);color:#34d399;padding:3px 7px;border-radius:5px;">✓ Semántica</span>
-                                        </div>
-                                        <div style="font-family:var(--font-mono); font-size:13px; line-height:1.55; color:#cbd5e1; white-space:pre; margin-top:4px;"><span class="kw">INICIO_RUTA</span> <span class="str">"Gran Ruta Puno"</span> <span class="op">:&gt;</span>
+                        <span style="font-family: var(--font-mono); font-size: 10.5px; color: #64748b"
+                          >gran_ruta_puno.tl</span
+                        >
+                      </div>
+                      <div
+                        style="
+                          font-family: var(--font-mono);
+                          font-size: 12px;
+                          line-height: 1.5;
+                          color: #cbd5e1;
+                          white-space: pre;
+                          margin-top: 4px;
+                          overflow: hidden;
+                        "
+                      ><span class="kw">INICIO_RUTA</span> <span class="str">"Gran Ruta Puno"</span> <span class="op">:&gt;</span>
   <span class="kw">ORIGEN</span> <span class="str">"Puno"</span> <span class="op">:&gt;</span>
   <span class="kw">INICIO_PARADA</span> <span class="str">"Sillustani"</span> <span class="op">:&gt;</span>
     <span class="kw">UBICACION</span> = [<span class="num-tok">-15.72</span>, <span class="num-tok">-70.14</span>] <span class="op">:&gt;</span>
@@ -1381,388 +2083,652 @@
   <span class="kw">DESTINO</span> <span class="str">"Puno"</span> <span class="op">:&gt;</span>
   <span class="kw">MOSTRAR_RUTA</span> <span class="op">:&gt;</span>
 <span class="kw">FIN_RUTA</span> <span class="op">:&gt;</span></div>
-                                    </div>
-                                    <div class="ide-pane-map">
-                                        <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:11px;">
-                                            <span style="background:rgba(6,13,24,0.85);color:#38bdf8;padding:4px 8px;border-radius:6px;border:1px solid rgba(56,189,248,0.35);">Terreno 3D · OSRM · 102.9 km</span>
-                                            <span style="background:#2563eb;color:#fff;padding:4px 8px;border-radius:6px;">✈️ Vuelo 3D</span>
-                                        </div>
-                                        <svg viewBox="0 0 360 280" width="100%" height="260">
-                                            <!-- Relieve estilizado Altiplano + Lago Titicaca -->
-                                            <ellipse cx="275" cy="175" rx="95" ry="70" fill="rgba(14,165,233,0.22)" stroke="rgba(56,189,248,0.35)" stroke-width="1.5"/>
-                                            <text x="275" y="182" fill="#7dd3fc" font-family="JetBrains Mono" font-size="11" text-anchor="middle" opacity="0.8">Lago Titicaca</text>
-                                            <!-- Carretera curva OSRM -->
-                                            <path d="M 190 215 Q 145 190 130 145 T 95 65 Q 145 110 190 215" fill="none" stroke="#0369a1" stroke-width="8" opacity="0.5"/>
-                                            <path d="M 190 215 Q 145 190 130 145 T 95 65 Q 145 110 190 215" fill="none" stroke="#38bdf8" stroke-width="3.5"/>
-                                            <!-- Marcadores 1, 2, 3 -->
-                                            <circle cx="190" cy="215" r="13" fill="#22c55e" stroke="#fff" stroke-width="2.5"/>
-                                            <text x="190" y="220" fill="#052e16" font-family="JetBrains Mono" font-size="12" font-weight="800" text-anchor="middle">1</text>
-                                            <text x="210" y="232" fill="#f8fafc" font-family="Plus Jakarta Sans" font-size="12" font-weight="700">Puno</text>
-
-                                            <circle cx="130" cy="145" r="13" fill="#fbbf24" stroke="#fff" stroke-width="2.5"/>
-                                            <text x="130" y="150" fill="#422006" font-family="JetBrains Mono" font-size="12" font-weight="800" text-anchor="middle">2</text>
-                                            <text x="64" y="150" fill="#fbbf24" font-family="Plus Jakarta Sans" font-size="12" font-weight="700">Sillustani</text>
-
-                                            <circle cx="95" cy="65" r="13" fill="#fbbf24" stroke="#fff" stroke-width="2.5"/>
-                                            <text x="95" y="70" fill="#422006" font-family="JetBrains Mono" font-size="12" font-weight="800" text-anchor="middle">3</text>
-                                            <text x="115" y="69" fill="#fbbf24" font-family="Plus Jakarta Sans" font-size="12" font-weight="700">Pucará</text>
-                                        </svg>
-                                        <div style="background:rgba(6,13,24,0.88);border-left:3px solid #10b981;padding:6px 10px;border-radius:6px;font-size:11.5px;color:#e2e8f0;">
-                                            ★ <b>RECOMENDACIÓN:</b> Ruta cultural recomendada
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="visual-caption">
-                                <span>Split 50/50 · Editor + Mapa 3D</span>
-                                <span style="color:var(--emerald);">Listo para Demo en Vivo</span>
-                            </div>
-                        </div>
                     </div>
-                </div>
-            </section>
+                    <div class="ide-pane-map">
+                      <div
+                        style="
+                          display: flex;
+                          justify-content: space-between;
+                          font-family: var(--font-mono);
+                          font-size: 11px;
+                        "
+                      >
+                        <span
+                          style="
+                            background: rgba(6, 13, 24, 0.85);
+                            color: #38bdf8;
+                            padding: 4px 8px;
+                            border-radius: 6px;
+                            border: 1px solid rgba(56, 189, 248, 0.35);
+                          "
+                          >Terreno 3D · OSRM · 102.9 km</span
+                        >
+                        <span style="background: #2563eb; color: #fff; padding: 4px 8px; border-radius: 6px"
+                          >✈️ Vuelo 3D</span
+                        >
+                      </div>
+                      <svg viewBox="0 0 360 280" preserveAspectRatio="xMidYMid meet" width="100%" height="260">
+                        <!-- Relieve estilizado Altiplano + Lago Titicaca -->
+                        <ellipse
+                          cx="265"
+                          cy="175"
+                          rx="85"
+                          ry="65"
+                          fill="rgba(14,165,233,0.22)"
+                          stroke="rgba(56,189,248,0.35)"
+                          stroke-width="1.5"
+                        />
+                        <text
+                          x="265"
+                          y="182"
+                          fill="#7dd3fc"
+                          font-family="JetBrains Mono"
+                          font-size="11"
+                          text-anchor="middle"
+                          opacity="0.8"
+                        >
+                          Lago Titicaca
+                        </text>
+                        <!-- Carretera curva OSRM -->
+                        <path
+                          d="M 190 215 Q 145 190 130 145 T 95 65 Q 145 110 190 215"
+                          fill="none"
+                          stroke="#0369a1"
+                          stroke-width="8"
+                          opacity="0.5"
+                        />
+                        <path
+                          d="M 190 215 Q 145 190 130 145 T 95 65 Q 145 110 190 215"
+                          fill="none"
+                          stroke="#38bdf8"
+                          stroke-width="3.5"
+                        />
+                        <!-- Marcadores 1, 2, 3 -->
+                        <circle cx="190" cy="215" r="13" fill="#22c55e" stroke="#fff" stroke-width="2.5" />
+                        <text
+                          x="190"
+                          y="220"
+                          fill="#052e16"
+                          font-family="JetBrains Mono"
+                          font-size="12"
+                          font-weight="800"
+                          text-anchor="middle"
+                        >
+                          1
+                        </text>
+                        <text
+                          x="210"
+                          y="232"
+                          fill="#f8fafc"
+                          font-family="Plus Jakarta Sans"
+                          font-size="12"
+                          font-weight="700"
+                        >
+                          Puno
+                        </text>
 
-            <!-- ===================================================
+                        <circle cx="130" cy="145" r="13" fill="#fbbf24" stroke="#fff" stroke-width="2.5" />
+                        <text
+                          x="130"
+                          y="150"
+                          fill="#422006"
+                          font-family="JetBrains Mono"
+                          font-size="12"
+                          font-weight="800"
+                          text-anchor="middle"
+                        >
+                          2
+                        </text>
+                        <text
+                          x="111"
+                          y="150"
+                          fill="#fbbf24"
+                          font-family="Plus Jakarta Sans"
+                          font-size="12"
+                          font-weight="700"
+                          text-anchor="end"
+                        >
+                          Sillustani
+                        </text>
+
+                        <circle cx="95" cy="65" r="13" fill="#fbbf24" stroke="#fff" stroke-width="2.5" />
+                        <text
+                          x="95"
+                          y="70"
+                          fill="#422006"
+                          font-family="JetBrains Mono"
+                          font-size="12"
+                          font-weight="800"
+                          text-anchor="middle"
+                        >
+                          3
+                        </text>
+                        <text
+                          x="115"
+                          y="69"
+                          fill="#fbbf24"
+                          font-family="Plus Jakarta Sans"
+                          font-size="12"
+                          font-weight="700"
+                        >
+                          Pucará
+                        </text>
+                      </svg>
+                      <div
+                        style="
+                          background: rgba(6, 13, 24, 0.88);
+                          border-left: 3px solid #10b981;
+                          padding: 6px 10px;
+                          border-radius: 6px;
+                          font-size: 11.5px;
+                          color: #e2e8f0;
+                        "
+                      >
+                        ★ <b>RECOMENDACIÓN:</b> Ruta cultural recomendada
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="visual-caption">
+                  <span>Split 50/50 · Editor + Mapa 3D</span>
+                  <span style="color: var(--emerald)">Listo para Demo en Vivo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================================================
                  SLIDE 10: RESULTADOS, CONCLUSIONES Y CIERRE (SINTETIZADO)
                  =================================================== -->
-            <section class="slide" data-slide="10">
-                <div class="slide-bg-mesh"></div>
-                <div class="slide-grid-overlay"></div>
-                <div class="slide-inner">
-                    <div class="slide-topbar">
-                        <div class="slide-tag"><span class="num">09</span> Resultados y Conclusiones</div>
-                        <div class="speaker-pill">Equipo TOUR-LANG · COINSI 2026</div>
-                    </div>
-                    <h2 class="slide-title reveal d1">Validación Experimental y <span class="accent">Conclusiones</span></h2>
+        <section class="slide" data-slide="10">
+          <div class="slide-bg-mesh"></div>
+          <div class="slide-grid-overlay"></div>
+          <div class="slide-inner">
+            <div class="slide-topbar">
+              <div class="slide-tag"><span class="num">09</span> Resultados y Conclusiones</div>
+              <div class="speaker-pill">Equipo TOUR-LANG · COINSI 2026</div>
+            </div>
+            <h2 class="slide-title reveal d1">Validación Experimental y <span class="accent">Conclusiones</span></h2>
 
-                    <div class="grid-4 reveal d2" style="margin-bottom: 30px;">
-                        <div class="card-compact card-highlight" style="text-align:center;">
-                            <div class="kpi-big green">30/30</div>
-                            <p style="font-size:19px;">Ejercicios de Puno compilados con éxito</p>
-                        </div>
-                        <div class="card-compact" style="text-align:center;">
-                            <div class="kpi-big">O(n)</div>
-                            <p style="font-size:19px;">Complejidad lineal en AFD y PDA</p>
-                        </div>
-                        <div class="card-compact" style="text-align:center;">
-                            <div class="kpi-big gold">140 / 36</div>
-                            <p style="font-size:19px;">Estados formales del AFD y PDA</p>
-                        </div>
-                        <div class="card-compact" style="text-align:center;">
-                            <div class="kpi-big" style="color:#a78bfa;">37</div>
-                            <p style="font-size:19px;">Tokens formales · 100% Open Source</p>
-                        </div>
-                    </div>
+            <div class="grid-4 reveal d2" style="margin-bottom: 30px">
+              <div class="card-compact card-highlight" style="text-align: center">
+                <div class="kpi-big green">30/30</div>
+                <p style="font-size: 19px">Ejercicios de Puno compilados con éxito</p>
+              </div>
+              <div class="card-compact" style="text-align: center">
+                <div class="kpi-big">O(n)</div>
+                <p style="font-size: 19px">Complejidad lineal en AFD y PDA</p>
+              </div>
+              <div class="card-compact" style="text-align: center">
+                <div class="kpi-big gold">140 / 36</div>
+                <p style="font-size: 19px">Estados formales del AFD y PDA</p>
+              </div>
+              <div class="card-compact" style="text-align: center">
+                <div class="kpi-big" style="color: #a78bfa">37</div>
+                <p style="font-size: 19px">Tokens formales · 100% Open Source</p>
+              </div>
+            </div>
 
-                    <div class="grid-2 reveal d3">
-                        <div class="card">
-                            <h3 style="color: var(--cyan);">Conclusiones Clave</h3>
-                            <ul>
-                                <li>DSL propio en español que une compiladores y turismo de Puno.</li>
-                                <li>Separación modular AFD, PDA y Semántica con diagnósticos precisos.</li>
-                                <li>Visualización real en Leaflet, MapLibre 3D y OSRM/Valhalla.</li>
-                            </ul>
-                        </div>
-                        <div class="card card-highlight" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
-                            <h3 style="font-size: 42px; color: var(--amber); margin-bottom: 16px;">¡Muchas Gracias!</h3>
-                            <p style="font-size: 23px; color: #e2e8f0; margin-bottom: 22px;">Listos para la demostración en vivo y preguntas del jurado.</p>
-                            <div style="font-family:var(--font-mono); font-size:19px; color:var(--cyan); background:rgba(56,189,248,0.1); border:1px solid var(--border-strong); padding:14px 24px; border-radius:12px;">
-                                github.com/katheeeee/PROYECTOTOUR-LANG2026
-                            </div>
-                        </div>
-                    </div>
+            <div class="grid-2 reveal d3">
+              <div class="card">
+                <h3 style="color: var(--cyan)">Conclusiones Clave</h3>
+                <ul>
+                  <li>DSL propio en español que une compiladores y turismo de Puno.</li>
+                  <li>Separación modular AFD, PDA y Semántica con diagnósticos precisos.</li>
+                  <li>Visualización real en Leaflet, MapLibre 3D y OSRM/Valhalla.</li>
+                </ul>
+              </div>
+              <div
+                class="card card-highlight"
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                  align-items: center;
+                  text-align: center;
+                "
+              >
+                <h3 style="font-size: 42px; color: var(--amber); margin-bottom: 16px">¡Muchas Gracias!</h3>
+                <p style="font-size: 23px; color: #e2e8f0; margin-bottom: 22px">
+                  Listos para la demostración en vivo y preguntas del jurado.
+                </p>
+                <div
+                  style="
+                    font-family: var(--font-mono);
+                    font-size: 19px;
+                    color: var(--cyan);
+                    background: rgba(56, 189, 248, 0.1);
+                    border: 1px solid var(--border-strong);
+                    padding: 14px 24px;
+                    border-radius: 12px;
+                  "
+                >
+                  github.com/katheeeee/PROYECTOTOUR-LANG2026
                 </div>
-            </section>
-
-        </main>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
 
     <!-- Navigation Controls outside fixed stage -->
     <nav class="deck-controls" aria-label="Controles de presentación">
-        <button class="ctrl-btn" id="prevBtn" title="Anterior (←)">‹</button>
-        <span class="ctrl-counter" id="slideCounter">1 / 10</span>
-        <button class="ctrl-btn" id="nextBtn" title="Siguiente (→)">›</button>
+      <button class="ctrl-btn" id="prevBtn" title="Anterior (←)">‹</button>
+      <span class="ctrl-counter" id="slideCounter">1 / 10</span>
+      <button class="ctrl-btn" id="nextBtn" title="Siguiente (→)">›</button>
     </nav>
 
     <script>
-        /* ===========================================
+      /* ===========================================
            1. SLIDE PRESENTATION CONTROLLER (1920x1080)
            =========================================== */
-        class SlidePresentation {
-            constructor() {
-                this.slides = document.querySelectorAll('.slide');
-                this.currentSlide = 0;
-                this.stage = document.getElementById('deckStage');
-                this.counter = document.getElementById('slideCounter');
-                this.progress = document.getElementById('progressFill');
-                this.setupStageScale();
-                this.setupControls();
-                this.setupKeyboardNav();
-                this.setupTouchNav();
-                this.showSlide(0);
-            }
-
-            setupStageScale() {
-                const scale = () => {
-                    const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
-                    const x = (window.innerWidth - 1920 * factor) / 2;
-                    const y = (window.innerHeight - 1080 * factor) / 2;
-                    this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
-                };
-                scale();
-                window.addEventListener('resize', scale);
-            }
-
-            setupControls() {
-                document.getElementById('prevBtn').addEventListener('click', () => this.showSlide(this.currentSlide - 1));
-                document.getElementById('nextBtn').addEventListener('click', () => this.showSlide(this.currentSlide + 1));
-            }
-
-            setupKeyboardNav() {
-                document.addEventListener('keydown', (e) => {
-                    if (e.target.getAttribute('contenteditable') === 'true') return;
-                    if (['ArrowRight', ' ', 'PageDown'].includes(e.key)) {
-                        e.preventDefault();
-                        this.showSlide(this.currentSlide + 1);
-                    } else if (['ArrowLeft', 'PageUp'].includes(e.key)) {
-                        e.preventDefault();
-                        this.showSlide(this.currentSlide - 1);
-                    } else if (e.key === 'Home') {
-                        this.showSlide(0);
-                    } else if (e.key === 'End') {
-                        this.showSlide(this.slides.length - 1);
-                    }
-                });
-            }
-
-            setupTouchNav() {
-                let startX = 0;
-                window.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
-                window.addEventListener('touchend', (e) => {
-                    const dx = e.changedTouches[0].clientX - startX;
-                    if (Math.abs(dx) > 60) {
-                        this.showSlide(this.currentSlide + (dx < 0 ? 1 : -1));
-                    }
-                }, { passive: true });
-            }
-
-            showSlide(index) {
-                this.currentSlide = Math.max(0, Math.min(index, this.slides.length - 1));
-                this.slides.forEach((slide, i) => {
-                    const isAct = i === this.currentSlide;
-                    slide.classList.toggle('active', isAct);
-                    slide.classList.toggle('visible', isAct);
-                });
-                this.counter.textContent = `${this.currentSlide + 1} / ${this.slides.length}`;
-                this.progress.style.width = `${((this.currentSlide + 1) / this.slides.length) * 100}%`;
-            }
+      class SlidePresentation {
+        constructor() {
+          this.slides = document.querySelectorAll('.slide');
+          this.currentSlide = 0;
+          this.stage = document.getElementById('deckStage');
+          this.counter = document.getElementById('slideCounter');
+          this.progress = document.getElementById('progressFill');
+          this.setupStageScale();
+          this.setupControls();
+          this.setupKeyboardNav();
+          this.setupTouchNav();
+          this.showSlide(0);
         }
 
-        /* ===========================================
+        setupStageScale() {
+          const scale = () => {
+            const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+            const x = (window.innerWidth - 1920 * factor) / 2;
+            const y = (window.innerHeight - 1080 * factor) / 2;
+            this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+          };
+          scale();
+          window.addEventListener('resize', scale);
+        }
+
+        setupControls() {
+          document.getElementById('prevBtn').addEventListener('click', () => this.showSlide(this.currentSlide - 1));
+          document.getElementById('nextBtn').addEventListener('click', () => this.showSlide(this.currentSlide + 1));
+        }
+
+        setupKeyboardNav() {
+          document.addEventListener('keydown', (e) => {
+            if (e.target.getAttribute('contenteditable') === 'true') return;
+            if (['ArrowRight', ' ', 'PageDown'].includes(e.key)) {
+              e.preventDefault();
+              this.showSlide(this.currentSlide + 1);
+            } else if (['ArrowLeft', 'PageUp'].includes(e.key)) {
+              e.preventDefault();
+              this.showSlide(this.currentSlide - 1);
+            } else if (e.key === 'Home') {
+              this.showSlide(0);
+            } else if (e.key === 'End') {
+              this.showSlide(this.slides.length - 1);
+            }
+          });
+        }
+
+        setupTouchNav() {
+          let startX = 0;
+          window.addEventListener(
+            'touchstart',
+            (e) => {
+              startX = e.touches[0].clientX;
+            },
+            { passive: true },
+          );
+          window.addEventListener(
+            'touchend',
+            (e) => {
+              const dx = e.changedTouches[0].clientX - startX;
+              if (Math.abs(dx) > 60) {
+                this.showSlide(this.currentSlide + (dx < 0 ? 1 : -1));
+              }
+            },
+            { passive: true },
+          );
+        }
+
+        showSlide(index) {
+          this.currentSlide = Math.max(0, Math.min(index, this.slides.length - 1));
+          this.slides.forEach((slide, i) => {
+            const isAct = i === this.currentSlide;
+            slide.classList.toggle('active', isAct);
+            slide.classList.toggle('visible', isAct);
+          });
+          this.counter.textContent = `${this.currentSlide + 1} / ${this.slides.length}`;
+          this.progress.style.width = `${((this.currentSlide + 1) / this.slides.length) * 100}%`;
+        }
+      }
+
+      /* ===========================================
            2. INTERACTIVE PDA AUTOMATON SIMULATOR (Γ = {Z, R, P, A, S})
            =========================================== */
-        class PDASimulator {
-            constructor() {
-                this.scenarios = {
-                    valid: [
-                        { node: 'q0', edge: null, token: 'Inicio', stack: ['Z'], status: 'ok',
-                          log: 'Estado inicial q0 | Pila = [Z]. Listo para recibir el flujo de tokens de TOUR-LANG.' },
-                        { node: 'q3', edge: 'e-q0-q3', token: 'INICIO_RUTA "Sillustani" :>', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q0, INICIO_RUTA .. :>) → q3 | Operación: PUSH R (abre bloque principal de ruta).' },
-                        { node: 'q6', edge: 'e-q3-q6', token: 'ORIGEN "Puno" :>', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q3, ORIGEN .. :>) → q6 | Punto de partida registrado. Habilitado para paradas o destino.' },
-                        { node: 'q9', edge: 'e-q6-q9', token: 'INICIO_PARADA "Sillustani" :>', stack: ['Z', 'R', 'P'], status: 'ok',
-                          log: 'δ(q6, INICIO_PARADA) → q9 | Operación: PUSH P (abre ámbito de parada).' },
-                        { node: 'qArr', edge: 'e-q9-qArr', token: 'UBICACION = [', stack: ['Z', 'R', 'P', 'A'], status: 'ok',
-                          log: 'δ(q9..q11, [) → qArr | Operación: PUSH A (abre arreglo de coordenadas).' },
-                        { node: 'q9', edge: 'e-qArr-q9', token: '-15.723, -70.147 ] :>', stack: ['Z', 'R', 'P'], status: 'ok',
-                          log: 'δ(qArr, ]) → q12 → q9 | Operación: POP A (arreglo balanceado y cerrado).' },
-                        { node: 'q6', edge: 'e-q9-q6', token: 'FIN_PARADA :>', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q9, FIN_PARADA) → q13 → q6 | Operación: POP P (parada cerrada correctamente).' },
-                        { node: 'q16', edge: 'e-q6-q16', token: 'DESTINO "Puno" :>', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q6, DESTINO .. :>) → q16 | Destino final validado. Entra a zona global.' },
-                        { node: 'q19', edge: 'e-q16-q19', token: 'COSTO = 90', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q16, COSTO = 90) → q19 | Atributo global leído; esperando terminador :>' },
-                        { node: 'q16', edge: 'e-q19-q16', token: ':>', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q19, :>) → q16 | Asignación global cerrada correctamente.' },
-                        { node: 'q24', edge: 'e-q16-q24', token: 'SI COSTO <= 100 :>', stack: ['Z', 'R', 'S'], status: 'ok',
-                          log: 'δ(q16, SI .. :>) → q24 | Operación: PUSH S (abre estructura condicional).' },
-                        { node: 'q16', edge: 'e-q24-q16', token: 'RECOMENDAR .. FIN :>', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q24, FIN :>) → q16 | Operación: POP S (condicional cerrado y balanceado).' },
-                        { node: 'qF', edge: 'e-q16-qF', token: 'FIN_RUTA :>', stack: [], status: 'accept',
-                          log: '✅ ACEPTADO en qF | Operación: POP R, Z → Pila VACÍA al leer FIN_CODIGO (EOF).' }
-                    ],
-                    error: [
-                        { node: 'q0', edge: null, token: 'Inicio', stack: ['Z'], status: 'ok',
-                          log: 'Estado inicial q0 | Pila = [Z]. Evaluando programa donde falta :> en línea 4.' },
-                        { node: 'q3', edge: 'e-q0-q3', token: 'INICIO_RUTA "Sur" :>', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q0, INICIO_RUTA .. :>) → q3 | Operación: PUSH R. Cabecera válida.' },
-                        { node: 'q6', edge: 'e-q3-q6', token: 'ORIGEN "Puno" :>', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q3, ORIGEN .. :>) → q6 | Origen válido.' },
-                        { node: 'q16', edge: 'e-q6-q16', token: 'DESTINO "Chucuito" :>', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q6, DESTINO .. :>) → q16 | Destino válido.' },
-                        { node: 'q19', edge: 'e-q16-q19', token: 'COSTO = 55', stack: ['Z', 'R'], status: 'ok',
-                          log: 'δ(q16, COSTO = 55) → q19 | En q19 el PDA exige obligatoriamente el terminador :>' },
-                        { node: 'q19', edge: null, token: 'MOSTRAR_RUTA', stack: ['Z', 'R'], status: 'error',
-                          log: '❌ RECHAZADO en q19 (Línea 5, Col 1): Recibido MOSTRAR_RUTA; se esperaba TERMINADOR (:>).' }
-                    ]
-                };
-                this.mode = 'valid';
-                this.idx = 0;
-                this.timer = null;
-                this.render();
-            }
-
-            setMode(mode) {
-                this.stop();
-                this.mode = mode;
-                this.idx = 0;
-                document.getElementById('btnModeValid').classList.toggle('active-mode', mode === 'valid');
-                document.getElementById('btnModeError').classList.toggle('active-mode', mode === 'error');
-                this.render();
-            }
-
-            reset() {
-                this.stop();
-                this.idx = 0;
-                this.render();
-            }
-
-            step() {
-                const steps = this.scenarios[this.mode];
-                if (this.idx < steps.length - 1) {
-                    this.idx++;
-                    this.render();
-                } else {
-                    this.stop();
-                }
-            }
-
-            togglePlay() {
-                if (this.timer) {
-                    this.stop();
-                } else {
-                    if (this.idx >= this.scenarios[this.mode].length - 1) this.idx = 0;
-                    document.getElementById('btnPlay').textContent = '⏸ Pausar';
-                    this.timer = setInterval(() => this.step(), 1250);
-                }
-            }
-
-            stop() {
-                if (this.timer) {
-                    clearInterval(this.timer);
-                    this.timer = null;
-                }
-                const btn = document.getElementById('btnPlay');
-                if (btn) btn.textContent = '▶ Reproducir';
-            }
-
-            render() {
-                const steps = this.scenarios[this.mode];
-                const cur = steps[this.idx];
-
-                document.querySelectorAll('.pda-node').forEach(n => n.classList.remove('active-node', 'accept-node', 'error-node'));
-                document.querySelectorAll('.pda-edge').forEach(e => {
-                    e.classList.remove('active-edge');
-                    e.setAttribute('marker-end', 'url(#arrow)');
-                });
-
-                const nodeEl = document.getElementById('n-' + cur.node);
-                if (nodeEl) {
-                    if (cur.status === 'accept') {
-                        nodeEl.classList.add('accept-node');
-                        const outer = document.getElementById('n-qF-outer');
-                        if (outer) outer.classList.add('accept-node');
-                    } else if (cur.status === 'error') {
-                        nodeEl.classList.add('error-node');
-                    } else {
-                        nodeEl.classList.add('active-node');
-                    }
-                }
-                if (cur.edge) {
-                    const edgeEl = document.getElementById(cur.edge);
-                    if (edgeEl) {
-                        edgeEl.classList.add('active-edge');
-                        edgeEl.setAttribute('marker-end', 'url(#arrowActive)');
-                    }
-                }
-
-                const stackBox = document.getElementById('simStack');
-                if (cur.stack.length === 0) {
-                    stackBox.innerHTML = '<div style="text-align:center;color:#34d399;font-family:var(--font-mono);font-size:20px;margin:auto;">( Pila Vacía ∅ )</div>';
-                } else {
-                    const labels = { Z: 'Z · Fondo', R: 'R · Ruta', P: 'P · Parada', A: 'A · [lat,lon]', S: 'S · SI/SINO' };
-                    stackBox.innerHTML = cur.stack.map(s => `<div class="stack-item stack-${s}">${labels[s] || s}</div>`).join('');
-                }
-
-                const tape = document.getElementById('simTape');
-                const start = Math.max(1, this.idx - 2);
-                const end = Math.min(steps.length, start + 5);
-                let htmlTape = '<span style="font-family:var(--font-mono);font-size:15px;color:#64748b;margin-right:6px;">TOKENS:</span>';
-                for (let i = start; i < end; i++) {
-                    let cls = 'tape-tok';
-                    if (i < this.idx) cls += ' done';
-                    else if (i === this.idx) cls += (cur.status === 'error' ? ' error' : ' current');
-                    htmlTape += `<span class="${cls}">${steps[i].token}</span>`;
-                }
-                tape.innerHTML = htmlTape;
-
-                const logBox = document.getElementById('simLog');
-                const color = cur.status === 'accept' ? '#34d399' : (cur.status === 'error' ? '#f87171' : '#e2e8f0');
-                logBox.innerHTML = `<div style="color:#64748b;font-size:15px;margin-bottom:8px;">PASO ${this.idx} / ${steps.length - 1} · ESTADO: <b style="color:#38bdf8;">${cur.node}</b></div><div style="color:${color};">${cur.log}</div>`;
-            }
+      class PDASimulator {
+        constructor() {
+          this.scenarios = {
+            valid: [
+              {
+                node: 'q0',
+                edge: null,
+                token: 'Inicio',
+                stack: ['Z'],
+                status: 'ok',
+                log: 'Estado inicial q0 | Pila = [Z]. Listo para recibir el flujo de tokens de TOUR-LANG.',
+              },
+              {
+                node: 'q3',
+                edge: 'e-q0-q3',
+                token: 'INICIO_RUTA "Sillustani" :>',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q0, INICIO_RUTA .. :>) → q3 | Operación: POP Z, PUSH R (reemplaza Z por R al abrir el bloque principal de ruta).',
+              },
+              {
+                node: 'q6',
+                edge: 'e-q3-q6',
+                token: 'ORIGEN "Puno" :>',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q3, ORIGEN .. :>) → q6 | Punto de partida registrado. Habilitado para paradas o destino.',
+              },
+              {
+                node: 'q9',
+                edge: 'e-q6-q9',
+                token: 'INICIO_PARADA "Sillustani" :>',
+                stack: ['R', 'P'],
+                status: 'ok',
+                log: 'δ(q6, INICIO_PARADA) → q9 | Operación: PUSH P (abre ámbito de parada).',
+              },
+              {
+                node: 'qArr',
+                edge: 'e-q9-qArr',
+                token: 'UBICACION = [',
+                stack: ['R', 'P', 'A'],
+                status: 'ok',
+                log: 'δ(q9..q11, [) → qArr | Operación: PUSH A (abre arreglo de coordenadas).',
+              },
+              {
+                node: 'q9',
+                edge: 'e-qArr-q9',
+                token: '-15.723, -70.147 ] :>',
+                stack: ['R', 'P'],
+                status: 'ok',
+                log: 'δ(qArr, ]) → q12 → q9 | Operación: POP A (arreglo balanceado y cerrado).',
+              },
+              {
+                node: 'q6',
+                edge: 'e-q9-q6',
+                token: 'FIN_PARADA :>',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q9, FIN_PARADA) → q13 → q6 | Operación: POP P (parada cerrada correctamente).',
+              },
+              {
+                node: 'q16',
+                edge: 'e-q6-q16',
+                token: 'DESTINO "Puno" :>',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q6, DESTINO .. :>) → q16 | Destino final validado. Entra a zona global.',
+              },
+              {
+                node: 'q19',
+                edge: 'e-q16-q19',
+                token: 'COSTO = 90',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q16, COSTO = 90) → q19 | Atributo global leído; esperando terminador :>',
+              },
+              {
+                node: 'q16',
+                edge: 'e-q19-q16',
+                token: ':>',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q19, :>) → q16 | Asignación global cerrada correctamente.',
+              },
+              {
+                node: 'q24',
+                edge: 'e-q16-q24',
+                token: 'SI COSTO <= 100 :>',
+                stack: ['R', 'S'],
+                status: 'ok',
+                log: 'δ(q16, SI .. :>) → q24 | Operación: PUSH S (abre estructura condicional).',
+              },
+              {
+                node: 'q16',
+                edge: 'e-q24-q16',
+                token: 'RECOMENDAR .. FIN :>',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q24, FIN :>) → q16 | Operación: POP S (condicional cerrado y balanceado).',
+              },
+              {
+                node: 'qF',
+                edge: 'e-q16-qF',
+                token: 'FIN_RUTA :>',
+                stack: [],
+                status: 'accept',
+                log: '✅ ACEPTADO en qF | Operación: POP R → Pila VACÍA al leer FIN_CODIGO (EOF).',
+              },
+            ],
+            error: [
+              {
+                node: 'q0',
+                edge: null,
+                token: 'Inicio',
+                stack: ['Z'],
+                status: 'ok',
+                log: 'Estado inicial q0 | Pila = [Z]. Evaluando programa donde falta :> en línea 4.',
+              },
+              {
+                node: 'q3',
+                edge: 'e-q0-q3',
+                token: 'INICIO_RUTA "Sur" :>',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q0, INICIO_RUTA .. :>) → q3 | Operación: POP Z, PUSH R. Cabecera válida.',
+              },
+              {
+                node: 'q6',
+                edge: 'e-q3-q6',
+                token: 'ORIGEN "Puno" :>',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q3, ORIGEN .. :>) → q6 | Origen válido.',
+              },
+              {
+                node: 'q16',
+                edge: 'e-q6-q16',
+                token: 'DESTINO "Chucuito" :>',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q6, DESTINO .. :>) → q16 | Destino válido.',
+              },
+              {
+                node: 'q19',
+                edge: 'e-q16-q19',
+                token: 'COSTO = 55',
+                stack: ['R'],
+                status: 'ok',
+                log: 'δ(q16, COSTO = 55) → q19 | En q19 el PDA exige obligatoriamente el terminador :>',
+              },
+              {
+                node: 'q19',
+                edge: null,
+                token: 'MOSTRAR_RUTA',
+                stack: ['R'],
+                status: 'error',
+                log: '❌ RECHAZADO en q19 (Línea 5, Col 1): Recibido MOSTRAR_RUTA; se esperaba TERMINADOR (:>).',
+              },
+            ],
+          };
+          this.mode = 'valid';
+          this.idx = 0;
+          this.timer = null;
+          this.render();
         }
 
-        /* ===========================================
+        setMode(mode) {
+          this.stop();
+          this.mode = mode;
+          this.idx = 0;
+          document.getElementById('btnModeValid').classList.toggle('active-mode', mode === 'valid');
+          document.getElementById('btnModeError').classList.toggle('active-mode', mode === 'error');
+          this.render();
+        }
+
+        reset() {
+          this.stop();
+          this.idx = 0;
+          this.render();
+        }
+
+        step() {
+          const steps = this.scenarios[this.mode];
+          if (this.idx < steps.length - 1) {
+            this.idx++;
+            this.render();
+          } else {
+            this.stop();
+          }
+        }
+
+        togglePlay() {
+          if (this.timer) {
+            this.stop();
+          } else {
+            if (this.idx >= this.scenarios[this.mode].length - 1) this.idx = 0;
+            document.getElementById('btnPlay').textContent = '⏸ Pausar';
+            this.timer = setInterval(() => this.step(), 1250);
+          }
+        }
+
+        stop() {
+          if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+          }
+          const btn = document.getElementById('btnPlay');
+          if (btn) btn.textContent = '▶ Reproducir';
+        }
+
+        render() {
+          const steps = this.scenarios[this.mode];
+          const cur = steps[this.idx];
+
+          document
+            .querySelectorAll('.pda-node')
+            .forEach((n) => n.classList.remove('active-node', 'accept-node', 'error-node'));
+          document.querySelectorAll('.pda-edge').forEach((e) => {
+            e.classList.remove('active-edge');
+            e.setAttribute('marker-end', 'url(#arrow)');
+          });
+
+          const nodeEl = document.getElementById('n-' + cur.node);
+          if (nodeEl) {
+            if (cur.status === 'accept') {
+              nodeEl.classList.add('accept-node');
+              const outer = document.getElementById('n-qF-outer');
+              if (outer) outer.classList.add('accept-node');
+            } else if (cur.status === 'error') {
+              nodeEl.classList.add('error-node');
+            } else {
+              nodeEl.classList.add('active-node');
+            }
+          }
+          if (cur.edge) {
+            const edgeEl = document.getElementById(cur.edge);
+            if (edgeEl) {
+              edgeEl.classList.add('active-edge');
+              edgeEl.setAttribute('marker-end', 'url(#arrowActive)');
+            }
+          }
+
+          const stackBox = document.getElementById('simStack');
+          if (cur.stack.length === 0) {
+            stackBox.innerHTML =
+              '<div style="text-align:center;color:#34d399;font-family:var(--font-mono);font-size:20px;margin:auto;">( Pila Vacía ∅ )</div>';
+          } else {
+            const labels = { Z: 'Z · Fondo', R: 'R · Ruta', P: 'P · Parada', A: 'A · [lat,lon]', S: 'S · SI/SINO' };
+            stackBox.innerHTML = cur.stack
+              .map((s) => `<div class="stack-item stack-${s}">${labels[s] || s}</div>`)
+              .join('');
+          }
+
+          const tape = document.getElementById('simTape');
+          const start = Math.max(1, this.idx - 2);
+          const end = Math.min(steps.length, start + 5);
+          let htmlTape =
+            '<span style="font-family:var(--font-mono);font-size:15px;color:#64748b;margin-right:6px;">TOKENS:</span>';
+          for (let i = start; i < end; i++) {
+            let cls = 'tape-tok';
+            if (i < this.idx) cls += ' done';
+            else if (i === this.idx) cls += cur.status === 'error' ? ' error' : ' current';
+            htmlTape += `<span class="${cls}">${steps[i].token}</span>`;
+          }
+          tape.innerHTML = htmlTape;
+
+          const logBox = document.getElementById('simLog');
+          const color = cur.status === 'accept' ? '#34d399' : cur.status === 'error' ? '#f87171' : '#e2e8f0';
+          logBox.innerHTML = `<div style="color:#64748b;font-size:15px;margin-bottom:8px;">PASO ${this.idx} / ${steps.length - 1} · ESTADO: <b style="color:#38bdf8;">${cur.node}</b></div><div style="color:${color};">${cur.log}</div>`;
+        }
+      }
+
+      /* ===========================================
            3. INLINE EDITOR (HOVER HOTZONE + E KEY)
            =========================================== */
-        class InlineEditor {
-            constructor() {
-                this.isActive = false;
-                this.toggleBtn = document.getElementById('editToggle');
-                this.hotzone = document.getElementById('editHotzone');
-                this.hideTimeout = null;
-                this.setupEvents();
-            }
-
-            setupEvents() {
-                this.toggleBtn.addEventListener('click', () => this.toggle());
-                this.hotzone.addEventListener('click', () => this.toggle());
-                this.hotzone.addEventListener('mouseenter', () => {
-                    clearTimeout(this.hideTimeout);
-                    this.toggleBtn.classList.add('show');
-                });
-                this.hotzone.addEventListener('mouseleave', () => {
-                    this.hideTimeout = setTimeout(() => {
-                        if (!this.isActive) this.toggleBtn.classList.remove('show');
-                    }, 400);
-                });
-                this.toggleBtn.addEventListener('mouseenter', () => clearTimeout(this.hideTimeout));
-                this.toggleBtn.addEventListener('mouseleave', () => {
-                    this.hideTimeout = setTimeout(() => {
-                        if (!this.isActive) this.toggleBtn.classList.remove('show');
-                    }, 400);
-                });
-                document.addEventListener('keydown', (e) => {
-                    if ((e.key === 'e' || e.key === 'E') && e.target.getAttribute('contenteditable') !== 'true') {
-                        this.toggle();
-                    }
-                });
-            }
-
-            toggle() {
-                this.isActive = !this.isActive;
-                this.toggleBtn.classList.toggle('active', this.isActive);
-                this.toggleBtn.textContent = this.isActive ? '💾 Editando (E)' : '✏️ Editar (E)';
-                document.querySelectorAll('.slide h1, .slide h2, .slide h3, .slide p, .slide li').forEach(el => {
-                    el.setAttribute('contenteditable', this.isActive ? 'true' : 'false');
-                });
-            }
+      class InlineEditor {
+        constructor() {
+          this.isActive = false;
+          this.toggleBtn = document.getElementById('editToggle');
+          this.hotzone = document.getElementById('editHotzone');
+          this.hideTimeout = null;
+          this.setupEvents();
         }
 
-        const deck = new SlidePresentation();
-        const pdaSim = new PDASimulator();
-        const editor = new InlineEditor();
+        setupEvents() {
+          this.toggleBtn.addEventListener('click', () => this.toggle());
+          this.hotzone.addEventListener('click', () => this.toggle());
+          this.hotzone.addEventListener('mouseenter', () => {
+            clearTimeout(this.hideTimeout);
+            this.toggleBtn.classList.add('show');
+          });
+          this.hotzone.addEventListener('mouseleave', () => {
+            this.hideTimeout = setTimeout(() => {
+              if (!this.isActive) this.toggleBtn.classList.remove('show');
+            }, 400);
+          });
+          this.toggleBtn.addEventListener('mouseenter', () => clearTimeout(this.hideTimeout));
+          this.toggleBtn.addEventListener('mouseleave', () => {
+            this.hideTimeout = setTimeout(() => {
+              if (!this.isActive) this.toggleBtn.classList.remove('show');
+            }, 400);
+          });
+          document.addEventListener('keydown', (e) => {
+            if ((e.key === 'e' || e.key === 'E') && e.target.getAttribute('contenteditable') !== 'true') {
+              this.toggle();
+            }
+          });
+        }
+
+        toggle() {
+          this.isActive = !this.isActive;
+          this.toggleBtn.classList.toggle('active', this.isActive);
+          this.toggleBtn.textContent = this.isActive ? '💾 Editando (E)' : '✏️ Editar (E)';
+          document.querySelectorAll('.slide h1, .slide h2, .slide h3, .slide p, .slide li').forEach((el) => {
+            el.setAttribute('contenteditable', this.isActive ? 'true' : 'false');
+          });
+        }
+      }
+
+      const deck = new SlidePresentation();
+      const pdaSim = new PDASimulator();
+      const editor = new InlineEditor();
     </script>
-</body>
+  </body>
 </html>

@@ -157,8 +157,8 @@
 			<from>0</from>
 			<to>1</to>
 			<read>INICIO_RUTA</read>
-			<pop/>
-			<push/>
+			<pop>Z</pop>
+			<push>R</push>
 		</transition>
 		<transition>
 			<from>1</from>
@@ -720,7 +720,7 @@
 			<from>23</from>
 			<to>33</to>
 			<read>:&gt;</read>
-			<pop>Z</pop>
+			<pop>R</pop>
 			<push/>
 		</transition>
 	</automaton>
